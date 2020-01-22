@@ -34,7 +34,7 @@ def load_data():
     x_train, y_train, x_test, y_test = [], [], [], []
     for split in ['training', 'testing']:
         for classidx in range(10):
-            datafile = '{}/dataORG_{}.mat'.format(split, classidx)
+            datafile = 'data/{}/dataORG_{}.mat'.format(split, classidx)
             data = loadmat(datafile)['xxO'].transpose([2, 0, 1])
             label = np.zeros(data.shape[0], dtype=np.int64)+classidx
             if split == 'training':
