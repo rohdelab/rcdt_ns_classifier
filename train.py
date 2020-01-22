@@ -78,9 +78,9 @@ if __name__ == '__main__':
     y_val = np.repeat(np.arange(10), val_indices.shape[0])
 
     model = models.vgg11_bn(num_classes=10).to(device)
-    # torch.save(model.state_dict(), 'data/model_init.pth')
+    torch.save(model.state_dict(), 'data/model_init.pth')
 
-    for n_samples in range(5, 55, 5):
+    for n_samples in range(40, 55, 5):
         for run in range(10):
             print('============== num samples {} run {} ============'.format(n_samples, run))
             model.load_state_dict(torch.load('data/model_init.pth'))
