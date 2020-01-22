@@ -71,7 +71,7 @@ if __name__ == '__main__':
     x_test_3d = np.repeat(x_test.reshape(-1, 1, 84, 84), axis=1, repeats=3)
     x_test_3d = torch.from_numpy(x_test_3d).to(device)
 
-    indices = loadmat('Ind_tr.mat')['indtr'] - 1 # index start from 1
+    indices = loadmat('data/Ind_tr.mat')['indtr'] - 1 # index start from 1
     val_indices = indices[50:, 0]
     x_val = take_samples(x_train_3d, val_indices)
     x_val = torch.from_numpy(x_val).to(device)
