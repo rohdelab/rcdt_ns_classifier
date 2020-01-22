@@ -137,7 +137,8 @@ if __name__ == '__main__':
                 state = torch.load(ckpt_path)
                 model.load_state_dict(state['model'])
                 print('recovered from {}'.format(ckpt_path))
-                print('samples {} run {} best val acc {}, epoch {}'.format(n_samples, run, state['best_val_acc'], state['epoch']))
+                print('samples {} run {} best val acc {}, epoch {}'.format(n_samples, run, state['best_val_acc'],
+                                                                           state['epoch']), end=' ')
                 logit = []
                 for i in range(0, 10000, 2000):
                   test_logit = model(x_test_3d[i:i+2000])
@@ -148,13 +149,14 @@ if __name__ == '__main__':
                 del state['model']
                 state['test_acc'] = test_acc
                 state['confusion_matrix'] = confusion_matrix(y_test, y_pred)
+                print('test acc {:.5f}'.format(test_acc))
                 print(state['confusion_matrix'])
                 with open(ckpt_path, 'wb') as f:
                     pickle.dump(state, f)
                 # # to load the data
                 # with open(ckpt_path, 'rb') as f:
                 #     state = pickle.load(f)
-                print('test acc {:.5f}'.format(test_acc))
+
                 print('saved to {}'.format(ckpt_path))
 
 
