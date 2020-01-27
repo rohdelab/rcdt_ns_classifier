@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     for n_samples in [2**i for i in range(13)]:
     # for n_samples in [1]:
-        for run in range(1):
+        for run in range(5):
             print('============== num samples {} run {} ============'.format(n_samples, run))
             model.load_state_dict(torch.load('./model_init.pth'))
 
