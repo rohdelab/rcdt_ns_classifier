@@ -159,7 +159,7 @@ if __name__ == '__main__':
             # optimizer = optim.Adadelta(model.parameters(), lr=1.0)
             # scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
 
-            save_path = 'results/{}/samples-{}-model-{}/'.format(args.dataset, train_samples, type(model).__name__)
+            save_path = 'results/{}/samples-{}-model-{}/'.format(args.dataset, n_samples, type(model).__name__)
             Path(save_path).mkdir(parents=True, exist_ok=True)
             ckpt_path = os.path.join(save_path, 'run{}.pkl'.format(run))
             best_val_acc = 0.0
