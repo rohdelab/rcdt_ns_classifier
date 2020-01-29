@@ -20,12 +20,12 @@ from IPython.core.debugger import set_trace
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', default='data701', type=str, choices=['data701', 'data700'])
+parser.add_argument('--dataset', type=str, choices=['data704', 'data701', 'data700'])
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 args = parser.parse_args()
 
-if args.dataset == 'data700':
+if args.dataset in ['data700', 'data704']:
     args.img_size = 28
 if args.dataset == 'data701':
     args.img_size = 84
@@ -68,9 +68,11 @@ class MNISTNet(nn.Module):
 def load_data():
     cache_file = os.path.join(args.dataset, 'customizedAffNIST.npz')
     if os.path.exists(cache_file):
+        print('loading data from cache file')
         data = np.load(cache_file)
         return (data['x_train'], data['y_train']), (data['x_test'], data['y_test'])
 
+    print('loading data from mat files')
     x_train, y_train, x_test, y_test = [], [], [], []
     for split in ['training', 'testing']:
         for classidx in range(10):
@@ -85,7 +87,6 @@ def load_data():
                 y_test.append(label)
     x_train, y_train = np.concatenate(x_train), np.concatenate(y_train)
     x_test, y_test = np.concatenate(x_test), np.concatenate(y_test)
-    print('input load data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
 
     x_train = x_train / x_train.max(axis=(1, 2), keepdims=True)
     x_test = x_test / x_test.max(axis=(1, 2), keepdims=True)
@@ -104,6 +105,8 @@ def take_samples(data, index):
 
 if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = load_data()
+    print('loaded data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
+
     # x_train shape: (class_idx*n_samples, args.img_size, args.img_size)
     x_train = (x_train.astype(np.float32) / 255. - 0.5) / 0.5
     x_train = x_train.reshape(-1, 1, args.img_size, args.img_size)
@@ -117,7 +120,7 @@ if __name__ == '__main__':
     x_test_format = torch.from_numpy(x_test_format).to(device)
 
     indices = loadmat(os.path.join(args.dataset, 'Ind_tr.mat'))['indtr'] - 1 # index start from 1
-    print('index file: {}'.format(indices.shape))
+    print('index data shape: {}'.format(indices.shape))
 
     val_indices = indices[4096:, 0]
     x_val = take_samples(x_train_format, val_indices)
