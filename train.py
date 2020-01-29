@@ -20,7 +20,7 @@ from IPython.core.debugger import set_trace
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data704', 'data701', 'data700'])
+parser.add_argument('--dataset', type=str, choices=['data704', 'data701', 'data700'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 args = parser.parse_args()
@@ -122,26 +122,36 @@ if __name__ == '__main__':
     indices = loadmat(os.path.join(args.dataset, 'Ind_tr.mat'))['indtr'] - 1 # index start from 1
     print('index data shape: {}'.format(indices.shape))
 
-    val_indices = indices[4096:, 0]
-    x_val = take_samples(x_train_format, val_indices)
-    x_val = torch.from_numpy(x_val).to(device)
-    y_val = np.repeat(np.arange(10), val_indices.shape[0])
-    print('x_val.shape {}'.format(x_val.shape))
-
     # model = models.vgg11_bn(num_classes=10).to(device)
     model = MNISTNet(input_channels=3).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
     for n_samples in [2**i for i in range(13)]:
-    # for n_samples in [1]:
+    # for n_samples in [256]:
+
         for run in range(5):
             print('============== num samples {} run {} ============'.format(n_samples, run))
             model.load_state_dict(torch.load('./model_init.pth'))
 
-            sub_index = indices[:n_samples, run]
-            x_train_sub = take_samples(x_train_format, sub_index)
-            assert n_samples <= indices.shape[0]
-            y_train_sub = np.repeat(np.arange(10), n_samples)
+            val_samples = n_samples // 10 # Use 10% for validation
+            train_samples = n_samples - val_samples
+
+            if val_samples >= 1:
+                val_indices = indices[-val_samples:, run]
+                x_val = take_samples(x_train_format, val_indices)
+                x_val = torch.from_numpy(x_val).to(device)
+                y_val = np.repeat(np.arange(10), val_indices.shape[0])
+                print('validation data shape {}'.format(x_val.shape), end=' ')
+            else:
+                x_val = None
+                y_val = None
+                print('validation data {}'.format(x_val), end=' ')
+
+            train_sub_index = indices[:train_samples, run]
+            x_train_sub = take_samples(x_train_format, train_sub_index)
+            assert train_samples <= indices.shape[0]
+            y_train_sub = np.repeat(np.arange(10), train_samples)
+            print('train data shape {}'.format(x_train_sub.shape))
 
             criterion = nn.CrossEntropyLoss()
             # optimizer = optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
@@ -149,7 +159,7 @@ if __name__ == '__main__':
             # optimizer = optim.Adadelta(model.parameters(), lr=1.0)
             # scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
 
-            save_path = 'results/{}/samples-{}-model-{}/'.format(args.dataset, n_samples, type(model).__name__)
+            save_path = 'results/{}/samples-{}-model-{}/'.format(args.dataset, train_samples, type(model).__name__)
             Path(save_path).mkdir(parents=True, exist_ok=True)
             ckpt_path = os.path.join(save_path, 'run{}.pkl'.format(run))
             best_val_acc = 0.0
@@ -183,20 +193,25 @@ if __name__ == '__main__':
 
                 # scheduler.step()
                 # validation
-                model.eval()
-                with torch.no_grad():
-                    val_logits = []
-                    for i in range(0, x_val.shape[0], 2000):
-                      batch_logit = model(x_val[i:i+2000])
-                      val_logits.append(batch_logit.cpu().numpy())
-                    val_logits = np.concatenate(val_logits)
-                    val_acc = (np.argmax(val_logits, axis=1) == y_val).mean()
-                    print('epoch {} val acc {:.5f}'.format(epoch, val_acc))
-                    if val_acc > best_val_acc:
-                        best_val_acc = val_acc
-                        state = dict(model=model.state_dict(), best_val_acc=val_acc, epoch=epoch)
-                        torch.save(state, ckpt_path)
-                        print('saved to ' + ckpt_path)
+                if x_val is not None:
+                    model.eval()
+                    with torch.no_grad():
+                        val_logits = []
+                        for i in range(0, x_val.shape[0], 2000):
+                          batch_logit = model(x_val[i:i+2000])
+                          val_logits.append(batch_logit.cpu().numpy())
+                        val_logits = np.concatenate(val_logits)
+                        val_acc = (np.argmax(val_logits, axis=1) == y_val).mean()
+                        print('epoch {} val acc {:.5f}'.format(epoch, val_acc))
+                        if val_acc > best_val_acc:
+                            best_val_acc = val_acc
+                            state = dict(model=model.state_dict(), best_val_acc=val_acc, epoch=epoch)
+                            torch.save(state, ckpt_path)
+                            print('saved to ' + ckpt_path)
+                else:
+                    state = dict(model=model.state_dict(), best_val_acc=-1, epoch=epoch)
+                    torch.save(state, ckpt_path)
+                    print('saved to ' + ckpt_path)
             # test
             model.eval()
             with torch.no_grad():
