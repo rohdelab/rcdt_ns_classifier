@@ -122,8 +122,8 @@ if __name__ == '__main__':
     indices = loadmat(os.path.join(args.dataset, 'Ind_tr.mat'))['indtr'] - 1 # index start from 1
     print('index data shape: {}'.format(indices.shape))
 
-    # model = models.vgg11_bn(num_classes=10).to(device)
-    model = MNISTNet(input_channels=3).to(device)
+    model = models.vgg11_bn(num_classes=10).to(device)
+    # model = MNISTNet(input_channels=3).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
     for n_samples in [2**i for i in range(13)]:
@@ -159,7 +159,7 @@ if __name__ == '__main__':
             # optimizer = optim.Adadelta(model.parameters(), lr=1.0)
             # scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
 
-            save_path = 'results/{}/samples-{}-model-{}/'.format(args.dataset, n_samples, type(model).__name__)
+            save_path = 'results-new-validation/{}/samples-{}-model-{}/'.format(args.dataset, n_samples, type(model).__name__)
             Path(save_path).mkdir(parents=True, exist_ok=True)
             ckpt_path = os.path.join(save_path, 'run{}.pkl'.format(run))
             best_val_acc = 0.0
