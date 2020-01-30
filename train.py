@@ -188,7 +188,7 @@ if __name__ == '__main__':
                     _, max_indices = torch.max(outputs, 1)
 
                     train_acc = (max_indices == targets).type(torch.float).mean()
-                    if (i//args.batch_size) // 10 == 0:
+                    if (i//args.batch_size) % 10 == 0:
                         print('epoch {} iter {} train loss {:.5f} acc {:.5f}'.format(epoch, i//args.batch_size, loss.item(), train_acc))
 
                 # scheduler.step()
