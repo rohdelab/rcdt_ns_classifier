@@ -16,6 +16,8 @@ from pathlib import Path
 from sklearn.metrics import confusion_matrix
 from torch.optim.lr_scheduler import StepLR
 from IPython.core.debugger import set_trace
+import torchvision.transforms as transforms
+from PIL import Image
 
 
 parser = argparse.ArgumentParser()
@@ -24,6 +26,7 @@ parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704',
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
+parser.add_argument('--model', default='vgg11', type=str, choices=['vgg11', 'shallowcnn'])
 args = parser.parse_args()
 
 if args.dataset in ['data700', 'data704']:
@@ -49,16 +52,18 @@ class MNISTNet(nn.Module):
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
         if args.img_size == 28:
-            self.fc1 = nn.Linear(9216, 128)
-        if args.img_size == 84:
-            self.fc1 = nn.Linear(64*40*40, 128)
-        self.fc2 = nn.Linear(128, 10)
+            self.pool = nn.MaxPool2d(2)
+        else:
+            self.pool = nn.AdaptiveAvgPool2d((12, 12))
+
+        self.fc1 = nn.Linear(64*12*12, 128)
+        self.fc2 = nn.Linear(128, args.num_classes)
 
     def forward(self, x):
-        x = self.conv1(x)
+        x = self.conv1(x) # output size (N, 32, 26 26)
         x = F.relu(x)
-        x = self.conv2(x)
-        x = F.max_pool2d(x, 2)
+        x = self.conv2(x) # output size (N, 64, 24, 24)
+        x = self.pool(x)
         x = self.dropout1(x)
         x = torch.flatten(x, 1)
         x = self.fc1(x)
@@ -81,7 +86,8 @@ def load_data():
     for split in ['training', 'testing']:
         for classidx in range(args.num_classes):
             datafile = os.path.join(args.dataset, '{}/dataORG_{}.mat'.format(split, classidx))
-            data = loadmat(datafile)['xxO'].transpose([2, 0, 1])
+            # loadmat(datafile)['xxO'] is of shape (H, W, N)
+            data = loadmat(datafile)['xxO'].transpose([2, 0, 1]) # transpose to (N, H, W)
             label = np.zeros(data.shape[0], dtype=np.int64)+classidx
             if split == 'training':
                 x_train.append(data)
@@ -98,6 +104,9 @@ def load_data():
     x_train = (x_train * 255.).astype(np.uint8)
     x_test = (x_test * 255.).astype(np.uint8)
 
+    # if args.dataset == 'data705_s3_t10':
+    #     x_train, x_test = resize(x_train, args.img_size), resize(x_test, args.img_size)
+
     np.savez(cache_file, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
 
     return (x_train, y_train), (x_test, y_test)
@@ -107,18 +116,38 @@ def take_samples(data, index):
     sub = np.take(data_reshape, index, axis=1)
     return sub.reshape(-1, 3, args.img_size, args.img_size)
 
+
+def resize(X, target_size):
+    # Assume batch of grayscale images
+    assert len(X.shape) == 3
+    if target_size == X.shape[1]:
+        return X
+    X_resize = []
+    for i in range(X.shape[0]):
+        im = Image.fromarray(X[i])
+        im_resize = im.resize((target_size, target_size))
+        X_resize.append(np.asarray(im_resize))
+    X_resize = np.stack(X_resize, axis=0)
+    assert X_resize.shape[0] == X.shape[0]
+    return X_resize
+
+
 if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = load_data()
     print('loaded data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
 
     # x_train shape: (class_idx*n_samples, args.img_size, args.img_size)
     x_train = (x_train.astype(np.float32) / 255. - 0.5) / 0.5
-    x_train = x_train.reshape(-1, 1, args.img_size, args.img_size)
+    x_train = x_train.reshape(-1, 1, x_train.shape[1], x_train.shape[2])
 
     x_train_format = np.repeat(x_train, axis=1, repeats=3)
 
+    # perm = np.random.permutation(x_train_format.shape[0])
+    # plt.imshow(make_grid(torch.from_numpy(x_train_format[perm][:64]), pad_value=1).permute(1, 2, 0))
+    # plt.show()
+
     x_test = (x_test.astype(np.float32) / 255. - 0.5) / 0.5
-    x_test = x_test.reshape(-1, 1, args.img_size, args.img_size)
+    x_test = x_test.reshape(-1, 1, x_test.shape[1], x_test.shape[2])
 
     x_test_format = np.repeat(x_test, axis=1, repeats=3)
     x_test_format = torch.from_numpy(x_test_format).to(device)
@@ -126,8 +155,10 @@ if __name__ == '__main__':
     indices = loadmat(os.path.join(args.dataset, 'Ind_tr.mat'))['indtr'] - 1 # index start from 1
     print('index data shape: {}'.format(indices.shape))
 
-    model = models.vgg11_bn(num_classes=args.num_classes).to(device)
-    # model = MNISTNet(input_channels=3).to(device)
+    if args.model == 'vgg11':
+        model = models.vgg11_bn(num_classes=args.num_classes).to(device)
+    elif args.model == 'shallowcnn':
+        model = MNISTNet(input_channels=3).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
     for n_samples in [2**i for i in range(10)]:
