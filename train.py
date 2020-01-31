@@ -20,15 +20,19 @@ from IPython.core.debugger import set_trace
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data704', 'data701', 'data700'], required=True)
+parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
+parser.add_argument('--num_classes', default=10, type=int)
 args = parser.parse_args()
 
 if args.dataset in ['data700', 'data704']:
     args.img_size = 28
 if args.dataset == 'data701':
     args.img_size = 84
+if args.dataset == 'data705_s3_t10':
+    args.img_size = 151
+    args.num_classes = 32
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -122,11 +126,11 @@ if __name__ == '__main__':
     indices = loadmat(os.path.join(args.dataset, 'Ind_tr.mat'))['indtr'] - 1 # index start from 1
     print('index data shape: {}'.format(indices.shape))
 
-    model = models.vgg11_bn(num_classes=10).to(device)
+    model = models.vgg11_bn(num_classes=args.num_classes).to(device)
     # model = MNISTNet(input_channels=3).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
-    for n_samples in [2**i for i in range(13)]:
+    for n_samples in [2**i for i in range(10)]:
     # for n_samples in [256]:
 
         for run in range(5):
@@ -197,8 +201,8 @@ if __name__ == '__main__':
                     model.eval()
                     with torch.no_grad():
                         val_logits = []
-                        for i in range(0, x_val.shape[0], 2000):
-                          batch_logit = model(x_val[i:i+2000])
+                        for i in range(0, x_val.shape[0], 500):
+                          batch_logit = model(x_val[i:i+500])
                           val_logits.append(batch_logit.cpu().numpy())
                         val_logits = np.concatenate(val_logits)
                         val_acc = (np.argmax(val_logits, axis=1) == y_val).mean()
@@ -221,8 +225,8 @@ if __name__ == '__main__':
                 print('samples {} run {} best val acc {}, epoch {}'.format(n_samples, run, state['best_val_acc'],
                                                                            state['epoch']), end=' ')
                 logit = []
-                for i in range(0, x_test_format.shape[0], 2000):
-                  test_logit = model(x_test_format[i:i+2000])
+                for i in range(0, x_test_format.shape[0], 500):
+                  test_logit = model(x_test_format[i:i+500])
                   logit.append(test_logit.cpu().numpy())
                 logit = np.concatenate(logit)
                 y_pred = np.argmax(logit, axis=1)
