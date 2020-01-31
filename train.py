@@ -79,7 +79,7 @@ def load_data():
     print('loading data from mat files')
     x_train, y_train, x_test, y_test = [], [], [], []
     for split in ['training', 'testing']:
-        for classidx in range(10):
+        for classidx in range(args.num_classes):
             datafile = os.path.join(args.dataset, '{}/dataORG_{}.mat'.format(split, classidx))
             data = loadmat(datafile)['xxO'].transpose([2, 0, 1])
             label = np.zeros(data.shape[0], dtype=np.int64)+classidx
@@ -103,7 +103,7 @@ def load_data():
     return (x_train, y_train), (x_test, y_test)
 
 def take_samples(data, index):
-    data_reshape = data.reshape(10, -1, 3, args.img_size, args.img_size)
+    data_reshape = data.reshape(args.num_classes, -1, 3, args.img_size, args.img_size)
     sub = np.take(data_reshape, index, axis=1)
     return sub.reshape(-1, 3, args.img_size, args.img_size)
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 val_indices = indices[-val_samples:, run]
                 x_val = take_samples(x_train_format, val_indices)
                 x_val = torch.from_numpy(x_val).to(device)
-                y_val = np.repeat(np.arange(10), val_indices.shape[0])
+                y_val = np.repeat(np.arange(args.num_classes), val_indices.shape[0])
                 print('validation data shape {}'.format(x_val.shape), end=' ')
             else:
                 x_val = None
@@ -154,7 +154,7 @@ if __name__ == '__main__':
             train_sub_index = indices[:train_samples, run]
             x_train_sub = take_samples(x_train_format, train_sub_index)
             assert train_samples <= indices.shape[0]
-            y_train_sub = np.repeat(np.arange(10), train_samples)
+            y_train_sub = np.repeat(np.arange(args.num_classes), train_samples)
             print('train data shape {}'.format(x_train_sub.shape))
 
             criterion = nn.CrossEntropyLoss()
