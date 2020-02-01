@@ -22,6 +22,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_recall_fscore_support
 import time
 import multiprocessing
+from datetime import datetime
 
 data_folder = 'data700'
 Rdown = 4   # downsample radon projections (w.r.t. angles)
@@ -46,16 +47,29 @@ def fun_classify(N_cv, dataN, labels, indtr, dataM, v1, v2):
         dataTr = np.concatenate((dataTr,v2),axis=1)
         
         # generate the bases vectors
+        print('=========== compute basis')
+        print(datetime.now())
+        print(dataTr.shape)
         u,s,vh = LA.svd(dataTr)
         s_ind = np.where(s>eps)
         basis = u[:,s_ind[0]]
 
         ## Testing Phase
+        print(datetime.now())
+        print('testing phase 1')
         proj = np.transpose(basis.T @ dataN)
+
+        # dataN: (h, N), basis: (h, M), proj: (N, M)
         
-        for i in range(dataN.shape[1]):
-            projR = sum((proj[i,:]*basis).T).T
-            dist[class_idx,i]= LA.norm(projR- dataN[:,i])
+        print(datetime.now())
+        print('testing phase 2')
+        projR = basis @ proj.T # projR: (h, N)
+        dist[class_idx] = LA.norm(projR - dataN, axis=0)
+        # for i in range(dataN.shape[1]):
+        #     projR = sum((proj[i,:]*basis).T).T
+        #     dist[class_idx,i]= LA.norm(projR- dataN[:,i])
+        print(datetime.now())
+        print('finished')
             
     for i in range(dataN.shape[1]):
         d = dist[:,i]
@@ -66,19 +80,18 @@ def fun_classify(N_cv, dataN, labels, indtr, dataM, v1, v2):
 
 if __name__ == '__main__':
     
-    start = time.time()
     # load train index
-    indtr = loadmat('../DATA/'+data_folder+'/Ind_tr.mat')['indtr']
+    indtr = loadmat(data_folder+'/Ind_tr.mat')['indtr']
     
     # load train data
     class_idx = 0
-    data = loadmat('../DATA/'+data_folder+'/tbm/training/dataTBM_'+str(class_idx)+'.mat')['xxT']
+    data = loadmat(data_folder+'/tbm/training/dataTBM_'+str(class_idx)+'.mat')['xxT']
     data = data[:,range(0,180,Rdown),:]
     dataM = np.reshape(data,(data.shape[0]*data.shape[1],data.shape[2]),order='F')
     labels = class_idx*np.ones([1,data.shape[2]])
     
     for class_idx in range(1,numClass):
-        data = loadmat('../DATA/'+data_folder+'/tbm/training/dataTBM_'+str(class_idx)+'.mat')['xxT']
+        data = loadmat(data_folder+'/tbm/training/dataTBM_'+str(class_idx)+'.mat')['xxT']
         data = data[:,range(0,180,Rdown),:]
         dataM = np.concatenate((dataM, np.reshape(data,(data.shape[0]*data.shape[1],data.shape[2]),order='F')), axis=1)
         labels = np.concatenate((labels, class_idx*np.ones([1,data.shape[2]])), axis=1)
@@ -95,13 +108,13 @@ if __name__ == '__main__':
         
     # load test data
     class_idx = 0
-    data = loadmat('../DATA/'+data_folder+'/tbm/testing/dataTBM_'+str(class_idx)+'.mat')['xxT']
+    data = loadmat(data_folder+'/tbm/testing/dataTBM_'+str(class_idx)+'.mat')['xxT']
     data = data[:,range(0,180,Rdown),:]
     dataN = np.reshape(data,(data.shape[0]*data.shape[1],data.shape[2]),order='F')
     yTe = class_idx*np.ones([1,data.shape[2]])
     
     for class_idx in range(1,numClass):
-        data = loadmat('../DATA/'+data_folder+'/tbm/testing/dataTBM_'+str(class_idx)+'.mat')['xxT']
+        data = loadmat(data_folder+'/tbm/testing/dataTBM_'+str(class_idx)+'.mat')['xxT']
         data = data[:,range(0,180,Rdown),:]
         dataN = np.concatenate((dataN, np.reshape(data,(data.shape[0]*data.shape[1],data.shape[2]),order='F')), axis=1)
         yTe = np.concatenate((yTe, class_idx*np.ones([1,data.shape[2]])), axis=1)
@@ -115,19 +128,20 @@ if __name__ == '__main__':
     
     acc = np.zeros([len(tr_split), N_exp])
     
-    for x_ax in tr_split:
+    start = time.time()
+    for x_ax in [512]:
         print('Train samples: '+str(x_ax))
         
         yPred = -1*np.ones([N_exp,yTe.shape[1]])
-        for N_cv in range(N_exp):
+        for N_cv in range(1):
             yPred[N_cv,:] = fun_classify(N_cv, dataN, labels, indtr, dataM, v1, v2)
             acc[indx,N_cv]=accuracy_score(yTe[0],yPred[N_cv,:])
             print(acc[indx,N_cv])            
 
 
         indx = indx+1
-        savemat('../DATA/'+data_folder+'/RESULTS/predictions_tr-'+str(x_ax)+'.mat',{'yPred': yPred, 'yTe':yTe})
-    savemat('../DATA/'+data_folder+'/RESULTS/accuracy.mat',{'acc': acc})
+        savemat(data_folder+'/RESULTS/predictions_tr-'+str(x_ax)+'.mat',{'yPred': yPred, 'yTe':yTe})
+    savemat(data_folder+'/RESULTS/accuracy.mat',{'acc': acc})
     
     end = time.time()
     print(end - start)
