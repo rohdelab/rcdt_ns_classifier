@@ -16,7 +16,10 @@ acc0 = [get_test_acc_mean('samples-{}-model-MNISTNet'.format(i)) for i in n_samp
 plt.plot(n_samples_range, acc0, 'ro-', label='ShallowCNN')
 
 acc1 = [get_test_acc_mean('samples-{}-model-VGG'.format(i)) for i in n_samples_range]
-plt.plot(n_samples_range, acc1, 'ro-', label='VGG11')
+plt.plot(n_samples_range, acc1, 'bo-', label='VGG11')
+
+plt.xlabel('#samples per-class')
+plt.ylabel('test accuracy')
 
 
 plt.legend()
