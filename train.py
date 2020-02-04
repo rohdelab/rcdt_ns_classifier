@@ -19,6 +19,7 @@ from IPython.core.debugger import set_trace
 import torchvision.transforms as transforms
 from PIL import Image
 from tqdm import tqdm
+# from cifar_models import resnet18
 
 
 parser = argparse.ArgumentParser()
@@ -27,7 +28,8 @@ parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704',
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
-parser.add_argument('--model', default='vgg11', type=str, choices=['vgg11', 'shallowcnn'])
+parser.add_argument('--model', default='vgg11', type=str, choices=['vgg11', 'shallowcnn', 'resnet18'])
+parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
 
 if args.dataset in ['data700', 'data704']:
@@ -149,9 +151,12 @@ if __name__ == '__main__':
 
     x_train_format = np.repeat(x_train, axis=1, repeats=3)
 
-    # perm = np.random.permutation(x_train_format.shape[0])
-    # plt.imshow(make_grid(torch.from_numpy(x_train_format[perm][:64]), pad_value=1).permute(1, 2, 0))
-    # plt.show()
+    if args.plot:
+        fig, axes = plt.subplots(nrows=args.num_classes, ncols=1)
+        for k in range(args.num_classes):
+            class_data = x_train_format[y_train == k][:64]
+            axes[k].imshow(make_grid(torch.from_numpy(class_data), nrow=16, pad_value=1).permute(1, 2, 0))
+        plt.show()
 
     x_test = (x_test.astype(np.float32) / 255. - 0.5) / 0.5
     x_test = x_test.reshape(-1, 1, x_test.shape[1], x_test.shape[2])
@@ -166,9 +171,11 @@ if __name__ == '__main__':
         model = models.vgg11_bn(num_classes=args.num_classes).to(device)
     elif args.model == 'shallowcnn':
         model = MNISTNet(input_channels=3).to(device)
+    if args.model == 'resnet18':
+        model = models.resnet18(num_classes=args.num_classes).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
-    for n_samples in [2**i for i in range(9)]:
+    for n_samples in [2**i for i in range(13)]:
     # for n_samples in [256]:
 
         for run in range(5):
