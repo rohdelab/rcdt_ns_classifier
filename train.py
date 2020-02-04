@@ -18,11 +18,12 @@ from torch.optim.lr_scheduler import StepLR
 from IPython.core.debugger import set_trace
 import torchvision.transforms as transforms
 from PIL import Image
+from tqdm import tqdm
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700'], required=True)
+parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
@@ -36,6 +37,12 @@ if args.dataset == 'data701':
 if args.dataset == 'data705_s3_t10':
     args.img_size = 151
     args.num_classes = 32
+if args.dataset == 'data706':
+    args.img_size = 64
+    args.num_classes = 2
+if args.dataset == 'data703':
+    args.img_size = 130
+    args.num_classes = 2
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -161,7 +168,7 @@ if __name__ == '__main__':
         model = MNISTNet(input_channels=3).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
-    for n_samples in [2**i for i in range(10)]:
+    for n_samples in [2**i for i in range(9)]:
     # for n_samples in [256]:
 
         for run in range(5):
