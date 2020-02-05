@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703'], required=True)
+parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
@@ -34,7 +34,7 @@ args = parser.parse_args()
 
 if args.dataset in ['data700', 'data704']:
     args.img_size = 28
-if args.dataset == 'data701':
+if args.dataset in ['data701', 'data701_rot']:
     args.img_size = 84
 if args.dataset == 'data705_s3_t10':
     args.img_size = 151
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     torch.save(model.state_dict(), './model_init.pth')
 
     for n_samples in [2**i for i in range(13)]:
-    # for n_samples in [256]:
+    # for n_samples in [4096]:
 
         for run in range(5):
             print('============== num samples {} run {} ============'.format(n_samples, run))
