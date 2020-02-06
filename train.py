@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot'], required=True)
+parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
@@ -45,6 +45,9 @@ if args.dataset == 'data706':
 if args.dataset == 'data703':
     args.img_size = 130
     args.num_classes = 2
+if args.dataset == 'data707':
+    args.img_size = 128
+    args.num_classes = 5
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -144,19 +147,21 @@ def resize(X, target_size):
 if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = load_data()
     print('loaded data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
+    if args.plot:
+        fig, axes = plt.subplots(nrows=args.num_classes, ncols=1)
+        for k in range(args.num_classes):
+            class_data = x_train[y_train == k][:64]
+            class_data = class_data.reshape(class_data.shape[0], 1, *class_data.shape[1:])
+            axes[k].imshow(make_grid(torch.from_numpy(class_data), nrow=16, pad_value=1).permute(1, 2, 0))
+        plt.savefig('samples.pdf')
+        plt.show()
+
 
     # x_train shape: (class_idx*n_samples, args.img_size, args.img_size)
     x_train = (x_train.astype(np.float32) / 255. - 0.5) / 0.5
     x_train = x_train.reshape(-1, 1, x_train.shape[1], x_train.shape[2])
 
     x_train_format = np.repeat(x_train, axis=1, repeats=3)
-
-    if args.plot:
-        fig, axes = plt.subplots(nrows=args.num_classes, ncols=1)
-        for k in range(args.num_classes):
-            class_data = x_train_format[y_train == k][:64]
-            axes[k].imshow(make_grid(torch.from_numpy(class_data), nrow=16, pad_value=1).permute(1, 2, 0))
-        plt.show()
 
     x_test = (x_test.astype(np.float32) / 255. - 0.5) / 0.5
     x_test = x_test.reshape(-1, 1, x_test.shape[1], x_test.shape[2])
