@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707', 'data707_hog', 'data708', 'data709'], required=True)
+parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707', 'data707_hog', 'data708', 'data709', 'data710'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
@@ -41,7 +41,7 @@ if args.dataset == 'data705_s3_t10':
     args.num_classes = 32
 if args.dataset == 'data706':
     args.img_size = 64
-    args.num_classes = 2
+    args.num_classes = 6
 if args.dataset == 'data703':
     args.img_size = 130
     args.num_classes = 2
@@ -54,6 +54,9 @@ if args.dataset == 'data708':
 if args.dataset == 'data709':
     args.img_size = 32
     args.num_classes = 4
+if args.dataset == 'data710':
+    args.img_size = 128
+    args.num_classes = 3
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -107,14 +110,19 @@ def load_data():
             # loadmat(datafile)['xxO'] is of shape (H, W, N)
             data = loadmat(datafile)['xxO'].transpose([2, 0, 1]) # transpose to (N, H, W)
             label = np.zeros(data.shape[0], dtype=np.int64)+classidx
+            print('split {} class {} data.shape {}'.format(split, classidx, data.shape))
             if split == 'training':
                 x_train.append(data)
                 y_train.append(label)
             else:
                 x_test.append(data)
                 y_test.append(label)
+    min_samples = min([x.shape[0] for x in x_train])
+    x_train = [x[:min_samples] for x in x_train]
+    y_train = [y[:min_samples] for y in y_train]
     x_train, y_train = np.concatenate(x_train), np.concatenate(y_train)
     x_test, y_test = np.concatenate(x_test), np.concatenate(y_test)
+    print('x_train.shape {} x_test.shape {}'.format(x_train.shape, x_test.shape))
 
     x_train = x_train / x_train.max(axis=(1, 2), keepdims=True)
     x_test = x_test / x_test.max(axis=(1, 2), keepdims=True)
