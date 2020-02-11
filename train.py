@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707', 'data707_hog', 'data708', 'data709', 'data710', 'data710_full'], required=True)
+parser.add_argument('--dataset', type=str, choices=['data711', 'data705_s3', 'data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707', 'data707_hog', 'data708', 'data709', 'data710', 'data710_full'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
@@ -36,7 +36,7 @@ if args.dataset in ['data700', 'data704']:
     args.img_size = 28
 if args.dataset in ['data701', 'data701_rot']:
     args.img_size = 84
-if args.dataset == 'data705_s3_t10':
+if args.dataset in ['data705_s3_t10', 'data705_s3']:
     args.img_size = 151
     args.num_classes = 32
 if args.dataset == 'data706':
@@ -60,6 +60,9 @@ if args.dataset == 'data710':
 if args.dataset == 'data710_full':
     args.img_size = 128
     args.num_classes = 24
+if args.dataset == 'data711':
+    args.img_size = 64
+    args.num_classes = 10
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -69,6 +72,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 class MNISTNet(nn.Module):
+# https://github.com/pytorch/examples/tree/master/mnist
     def __init__(self, input_channels):
         super().__init__()
         self.conv1 = nn.Conv2d(input_channels, 32, 3, 1)
@@ -198,7 +202,7 @@ if __name__ == '__main__':
     torch.save(model.state_dict(), './model_init.pth')
 
     for n_samples in [2**i for i in range(13)]:
-    # for n_samples in [4096]:
+    # for n_samples in [512]:
 
         for run in range(5):
             print('============== num samples {} run {} ============'.format(n_samples, run))
@@ -268,8 +272,8 @@ if __name__ == '__main__':
                     model.eval()
                     with torch.no_grad():
                         val_logits = []
-                        for i in range(0, x_val.shape[0], 500):
-                          batch_logit = model(x_val[i:i+500])
+                        for i in range(0, x_val.shape[0], 100):
+                          batch_logit = model(x_val[i:i+100])
                           val_logits.append(batch_logit.cpu().numpy())
                         val_logits = np.concatenate(val_logits)
                         val_acc = (np.argmax(val_logits, axis=1) == y_val).mean()
@@ -292,8 +296,8 @@ if __name__ == '__main__':
                 print('samples {} run {} best val acc {}, epoch {}'.format(n_samples, run, state['best_val_acc'],
                                                                            state['epoch']), end=' ')
                 logit = []
-                for i in range(0, x_test_format.shape[0], 500):
-                  test_logit = model(x_test_format[i:i+500])
+                for i in range(0, x_test_format.shape[0], 100):
+                  test_logit = model(x_test_format[i:i+100])
                   logit.append(test_logit.cpu().numpy())
                 logit = np.concatenate(logit)
                 y_pred = np.argmax(logit, axis=1)
