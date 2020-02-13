@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data711', 'data705_s3', 'data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707', 'data707_hog', 'data708', 'data709', 'data710', 'data710_full'], required=True)
+parser.add_argument('--dataset', type=str, choices=['data699', 'data711', 'data705_s3', 'data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707', 'data707_hog', 'data708', 'data709', 'data710', 'data710_full'], required=True)
 parser.add_argument('--img_size', default=84, type=int)
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--num_classes', default=10, type=int)
@@ -63,6 +63,9 @@ if args.dataset == 'data710_full':
 if args.dataset == 'data711':
     args.img_size = 64
     args.num_classes = 10
+if args.dataset == 'data699':
+    args.img_size = 128
+    args.num_classes = 1000
 
 np.random.seed(0)
 torch.manual_seed(0)
