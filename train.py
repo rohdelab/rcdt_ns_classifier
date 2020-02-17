@@ -19,6 +19,7 @@ from IPython.core.debugger import set_trace
 import torchvision.transforms as transforms
 from PIL import Image
 from tqdm import tqdm
+from utils import *
 # from cifar_models import resnet18
 
 
@@ -104,97 +105,23 @@ class MNISTNet(nn.Module):
         return x
 
 
-@lru_cache()
-def load_data():
-    cache_file = os.path.join(args.dataset, 'customizedAffNIST.npz')
-    if os.path.exists(cache_file):
-        print('loading data from cache file')
-        data = np.load(cache_file)
-        return (data['x_train'], data['y_train']), (data['x_test'], data['y_test'])
-
-    print('loading data from mat files')
-    x_train, y_train, x_test, y_test = [], [], [], []
-    for split in ['training', 'testing']:
-        for classidx in range(args.num_classes):
-            datafile = os.path.join(args.dataset, '{}/dataORG_{}.mat'.format(split, classidx))
-            # loadmat(datafile)['xxO'] is of shape (H, W, N)
-            data = loadmat(datafile)['xxO'].transpose([2, 0, 1]) # transpose to (N, H, W)
-            label = np.zeros(data.shape[0], dtype=np.int64)+classidx
-            print('split {} class {} data.shape {}'.format(split, classidx, data.shape))
-            if split == 'training':
-                x_train.append(data)
-                y_train.append(label)
-            else:
-                x_test.append(data)
-                y_test.append(label)
-    min_samples = min([x.shape[0] for x in x_train])
-    x_train = [x[:min_samples] for x in x_train]
-    y_train = [y[:min_samples] for y in y_train]
-    x_train, y_train = np.concatenate(x_train), np.concatenate(y_train)
-    x_test, y_test = np.concatenate(x_test), np.concatenate(y_test)
-    print('x_train.shape {} x_test.shape {}'.format(x_train.shape, x_test.shape))
-
-    x_train = x_train / x_train.max(axis=(1, 2), keepdims=True)
-    x_test = x_test / x_test.max(axis=(1, 2), keepdims=True)
-
-    x_train = (x_train * 255.).astype(np.uint8)
-    x_test = (x_test * 255.).astype(np.uint8)
-
-    # if args.dataset == 'data705_s3_t10':
-    #     x_train, x_test = resize(x_train, args.img_size), resize(x_test, args.img_size)
-
-    np.savez(cache_file, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
-
-    return (x_train, y_train), (x_test, y_test)
-
-def take_samples(data, index):
-    data_reshape = data.reshape(args.num_classes, -1, 3, args.img_size, args.img_size)
-    sub = np.take(data_reshape, index, axis=1)
-    return sub.reshape(-1, 3, args.img_size, args.img_size)
-
-
-def resize(X, target_size):
-    # Assume batch of grayscale images
-    assert len(X.shape) == 3
-    if target_size == X.shape[1]:
-        return X
-    X_resize = []
-    for i in range(X.shape[0]):
-        im = Image.fromarray(X[i])
-        im_resize = im.resize((target_size, target_size))
-        X_resize.append(np.asarray(im_resize))
-    X_resize = np.stack(X_resize, axis=0)
-    assert X_resize.shape[0] == X.shape[0]
-    return X_resize
-
 
 if __name__ == '__main__':
-    (x_train, y_train), (x_test, y_test) = load_data()
+    (x_train, y_train), (x_test, y_test) = load_data_3D(args.dataset)
     print('loaded data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
     if args.plot:
         fig, axes = plt.subplots(nrows=args.num_classes, ncols=1)
         for k in range(args.num_classes):
             class_data = x_train[y_train == k][:64]
-            class_data = class_data.reshape(class_data.shape[0], 1, *class_data.shape[1:])
+            class_data = class_data.reshape(class_data.shape[0], 3, *class_data.shape[2:])
             axes[k].imshow(make_grid(torch.from_numpy(class_data), nrow=16, pad_value=1).permute(1, 2, 0))
-        plt.savefig('samples.pdf')
+        plt.savefig('samples.pdf', dpi=400)
         plt.show()
 
 
-    # x_train shape: (class_idx*n_samples, args.img_size, args.img_size)
+    # x_train shape: (class_idx*n_samples_perclass, args.img_size, args.img_size)
     x_train = (x_train.astype(np.float32) / 255. - 0.5) / 0.5
-    x_train = x_train.reshape(-1, 1, x_train.shape[1], x_train.shape[2])
-
-    x_train_format = np.repeat(x_train, axis=1, repeats=3)
-
     x_test = (x_test.astype(np.float32) / 255. - 0.5) / 0.5
-    x_test = x_test.reshape(-1, 1, x_test.shape[1], x_test.shape[2])
-
-    x_test_format = np.repeat(x_test, axis=1, repeats=3)
-    x_test_format = torch.from_numpy(x_test_format).to(device)
-
-    indices = loadmat(os.path.join(args.dataset, 'Ind_tr.mat'))['indtr'] - 1 # index start from 1
-    print('index data shape: {}'.format(indices.shape))
 
     if args.model == 'vgg11':
         model = models.vgg11_bn(num_classes=args.num_classes).to(device)
@@ -204,42 +131,19 @@ if __name__ == '__main__':
         model = models.resnet18(num_classes=args.num_classes).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
-    for n_samples in [2**i for i in range(13)]:
-    # for n_samples in [512]:
-
-        for run in range(5):
-            print('============== num samples {} run {} ============'.format(n_samples, run))
+    for n_samples_perclass in [2**i for i in range(1, 13)]:
+    # for n_samples_perclass in [512]:
+        for repeat in range(5):
+            print('============== num samples {} repeat {} ============'.format(n_samples_perclass, repeat))
             model.load_state_dict(torch.load('./model_init.pth'))
-
-            val_samples = n_samples // 10 # Use 10% for validation
-            train_samples = n_samples - val_samples
-
-            if val_samples >= 1:
-                val_indices = indices[-val_samples:, run]
-                x_val = take_samples(x_train_format, val_indices)
-                x_val = torch.from_numpy(x_val).to(device)
-                y_val = np.repeat(np.arange(args.num_classes), val_indices.shape[0])
-                print('validation data shape {}'.format(x_val.shape), end=' ')
-            else:
-                x_val = None
-                y_val = None
-                print('validation data {}'.format(x_val), end=' ')
-
-            train_sub_index = indices[:train_samples, run]
-            x_train_sub = take_samples(x_train_format, train_sub_index)
-            assert train_samples <= indices.shape[0]
-            y_train_sub = np.repeat(np.arange(args.num_classes), train_samples)
-            print('train data shape {}'.format(x_train_sub.shape))
+            (x_train_sub, y_train_sub), (x_val, y_val) = train_val_split(x_train, y_train, n_samples_perclass, args.num_classes, repeat)
 
             criterion = nn.CrossEntropyLoss()
-            # optimizer = optim.SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
             optimizer = optim.Adam(model.parameters(), lr=5e-4)
-            # optimizer = optim.Adadelta(model.parameters(), lr=1.0)
-            # scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
 
-            save_path = 'results-new-validation/{}/samples-{}-model-{}/'.format(args.dataset, n_samples, type(model).__name__)
+            save_path = 'results-new-validation/{}/samples-{}-model-{}/'.format(args.dataset, n_samples_perclass, type(model).__name__)
             Path(save_path).mkdir(parents=True, exist_ok=True)
-            ckpt_path = os.path.join(save_path, 'run{}.pkl'.format(run))
+            ckpt_path = os.path.join(save_path, 'repeat{}.pkl'.format(repeat))
             best_val_acc = 0.0
 
             for epoch in range(args.epochs):
@@ -269,7 +173,6 @@ if __name__ == '__main__':
                     if (i//args.batch_size) % 10 == 0:
                         print('epoch {} iter {} train loss {:.5f} acc {:.5f}'.format(epoch, i//args.batch_size, loss.item(), train_acc))
 
-                # scheduler.step()
                 # validation
                 if x_val is not None:
                     model.eval()
@@ -296,11 +199,12 @@ if __name__ == '__main__':
                 state = torch.load(ckpt_path)
                 model.load_state_dict(state['model'])
                 print('recovered from {}'.format(ckpt_path))
-                print('samples {} run {} best val acc {}, epoch {}'.format(n_samples, run, state['best_val_acc'],
+                print('samples {} repeat {} best val acc {}, epoch {}'.format(n_samples_perclass, repeat, state['best_val_acc'],
                                                                            state['epoch']), end=' ')
                 logit = []
-                for i in range(0, x_test_format.shape[0], 100):
-                  test_logit = model(x_test_format[i:i+100])
+                for i in range(0, x_test.shape[0], 100):
+                  x_test_batch = torch.from_numpy(x_test[i:i+100]).to(device)
+                  test_logit = model(x_test_batch)
                   logit.append(test_logit.cpu().numpy())
                 logit = np.concatenate(logit)
                 y_pred = np.argmax(logit, axis=1)
