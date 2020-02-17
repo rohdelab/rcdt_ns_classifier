@@ -32,9 +32,9 @@ elif  dataset in ['AffMNIST']:
     data_folder = '../DATA/data701'
     print(dataset +': '+data_folder)
     rm_edge=True
-    numClass = 2
-    #classes = range(numClass)
-    classes = [1,5]
+    numClass = 10
+    classes = range(numClass)
+    #classes = [1,5]
     po_max = 12   # maximum train samples = 2^po_max
 elif dataset in ['OAM']:
     data_folder = '../DATA/data705_s3'
