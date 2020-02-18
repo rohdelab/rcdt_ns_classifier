@@ -3,37 +3,27 @@ import torchvision.models as models
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
+
 from thop import profile
-
-class MNISTNet(nn.Module):
-    def __init__(self, input_channels, num_classes):
-        super().__init__()
-        self.conv1 = nn.Conv2d(input_channels, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.dropout1 = nn.Dropout2d(0.25)
-        self.dropout2 = nn.Dropout2d(0.5)
-        self.pool = nn.AdaptiveAvgPool2d((12, 12))
-
-        self.fc1 = nn.Linear(64*12*12, 128)
-        self.fc2 = nn.Linear(128, num_classes)
-
-    def forward(self, x):
-        x = self.conv1(x) # output size (N, 32, 26 26)
-        x = F.relu(x)
-        x = self.conv2(x) # output size (N, 64, 24, 24)
-        x = self.pool(x)
-        x = self.dropout1(x)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
-        x = self.fc2(x)
-        return x
+from model import MNISTNet
 
 # https://github.com/Lyken17/pytorch-OpCounter
 # https://github.com/sovrasov/flops-counter.pytorch/issues/16
-model = MNISTNet(3, 10)
-input = torch.randn(1, 3, 28, 28)
-macs, params = profile(model, inputs=(input, ))
-print('GMACs {}, GFLOPs {}'.format(macs/1e9, macs/2e9))
+
+def gflops(model, epochs=50, num_train_samples=1, input_size=28):
+    assert model in ['shallowcnn', 'resnet18', 'vgg11']
+    if model == 'shallowcnn':
+        model = MNISTNet(3, 10, img_size=28)
+    if model == 'resnet18':
+        model = models.resnet18(num_classes=10)
+    if model == 'vgg11':
+        model = models.vgg11_bn(num_classes=10)
+    input = torch.randn(1, 3, input_size, input_size)
+    macs, params = profile(model, inputs=(input, ))
+    gflops = epochs * num_train_samples * 2 * macs/2e9
+    return gflops
+    # print('GMACs {}, GFLOPs {}'.format(macs/1e9, macs/2e9))
+
+print(gflops('resnet18'))
 

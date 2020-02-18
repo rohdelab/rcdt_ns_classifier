@@ -19,53 +19,19 @@ import torchvision.transforms as transforms
 from PIL import Image
 from tqdm import tqdm
 from utils import *
+from model import MNISTNet
 # from cifar_models import resnet18
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, choices=['data699', 'data711', 'data705_s3', 'data705_s3_t10', 'data704', 'data701', 'data700', 'data706', 'data703', 'data701_rot', 'data707', 'data707_hog', 'data708', 'data709', 'data710', 'data710_full'], required=True)
-parser.add_argument('--img_size', default=84, type=int)
+parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--epochs', default=50, type=int)
-parser.add_argument('--num_classes', default=10, type=int)
 parser.add_argument('--model', default='vgg11', type=str, choices=['vgg11', 'shallowcnn', 'resnet18'])
 parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
 
-if args.dataset in ['data700', 'data704']:
-    args.img_size = 28
-if args.dataset in ['data701', 'data701_rot']:
-    args.img_size = 84
-if args.dataset in ['data705_s3_t10', 'data705_s3']:
-    args.img_size = 151
-    args.num_classes = 32
-if args.dataset == 'data706':
-    args.img_size = 64
-    args.num_classes = 6
-if args.dataset == 'data703':
-    args.img_size = 130
-    args.num_classes = 2
-if args.dataset in ['data707', 'data707_hog']:
-    args.img_size = 128
-    args.num_classes = 5
-if args.dataset == 'data708':
-    args.img_size = 120
-    args.num_classes = 2
-if args.dataset == 'data709':
-    args.img_size = 32
-    args.num_classes = 4
-if args.dataset == 'data710':
-    args.img_size = 128
-    args.num_classes = 3
-if args.dataset == 'data710_full':
-    args.img_size = 128
-    args.num_classes = 24
-if args.dataset == 'data711':
-    args.img_size = 64
-    args.num_classes = 10
-if args.dataset == 'data699':
-    args.img_size = 128
-    args.num_classes = 1000
+img_size, num_classes = dataset_info(args.dataset)
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -73,40 +39,8 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
-class MNISTNet(nn.Module):
-# https://github.com/pytorch/examples/tree/master/mnist
-    def __init__(self, input_channels):
-        super().__init__()
-        self.conv1 = nn.Conv2d(input_channels, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.dropout1 = nn.Dropout2d(0.25)
-        self.dropout2 = nn.Dropout2d(0.5)
-        if args.img_size == 28:
-            self.pool = nn.MaxPool2d(2)
-        else:
-            self.pool = nn.AdaptiveAvgPool2d((12, 12))
-
-        self.fc1 = nn.Linear(64*12*12, 128)
-        self.fc2 = nn.Linear(128, args.num_classes)
-
-    def forward(self, x):
-        x = self.conv1(x) # output size (N, 32, 26 26)
-        x = F.relu(x)
-        x = self.conv2(x) # output size (N, 64, 24, 24)
-        x = self.pool(x)
-        x = self.dropout1(x)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
-        x = self.fc2(x)
-        return x
-
-
-
 if __name__ == '__main__':
-    (x_train, y_train), (x_test, y_test) = load_data_3D(args.dataset, args.num_classes)
+    (x_train, y_train), (x_test, y_test) = load_data_3D(args.dataset, num_classes)
     print('loaded data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
 
     # x_train shape: (class_idx*n_samples_perclass, args.img_size, args.img_size)
@@ -114,18 +48,18 @@ if __name__ == '__main__':
     x_test = (x_test.astype(np.float32) / 255. - 0.5) / 0.5
 
     if args.model == 'vgg11':
-        model = models.vgg11_bn(num_classes=args.num_classes).to(device)
+        model = models.vgg11_bn(num_classes=num_classes).to(device)
     elif args.model == 'shallowcnn':
-        model = MNISTNet(input_channels=3).to(device)
+        model = MNISTNet(3, num_classes, img_size).to(device)
     if args.model == 'resnet18':
-        model = models.resnet18(num_classes=args.num_classes).to(device)
+        model = models.resnet18(num_classes=num_classes).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
     for n_samples_perclass in [2**i for i in range(0, 13)]:
     # for n_samples_perclass in [512]:
         for repeat in range(5):
             model.load_state_dict(torch.load('./model_init.pth'))
-            (x_train_sub, y_train_sub), (x_val, y_val) = train_val_split(x_train, y_train, n_samples_perclass, args.num_classes, repeat)
+            (x_train_sub, y_train_sub), (x_val, y_val) = train_val_split(x_train, y_train, n_samples_perclass, num_classes, repeat)
             if x_val is not None:
                 print('============== perclass samples {} repeat {} x_train_sub.shape {} x_val.shape {} ============'.format(n_samples_perclass, repeat, x_train_sub.shape, x_val.shape))
             else:
@@ -145,8 +79,8 @@ if __name__ == '__main__':
                 y_train_sub_perm = y_train_sub[perm]
 
                 if args.plot:
-                    fig, axes = plt.subplots(ncols=args.num_classes, nrows=1)
-                    for k in range(args.num_classes):
+                    fig, axes = plt.subplots(ncols=num_classes, nrows=1)
+                    for k in range(num_classes):
                         class_data = x_train_sub_perm[y_train_sub_perm == k][:64]
                         class_data = class_data.reshape(class_data.shape[0], 3, *class_data.shape[2:])
                         print(class_data.shape, class_data.dtype, class_data.min(), class_data.max())

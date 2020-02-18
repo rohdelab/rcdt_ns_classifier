@@ -89,6 +89,11 @@ def load_data_3D(dataset, num_classes):
     x_test = np.repeat(x_test, axis=1, repeats=3)
     return (x_train, y_train), (x_test, y_test)
 
+def take_train_samples(x_train, y_train, indices_perclass, num_classes, repeat):
+    max_index = x_train.shape[0] // num_classes
+    train_index = new_index_matrix(max_index, indices_perclass, num_classes, repeat)
+    x_train_sub, y_train_sub = take_samples(x_train, y_train, train_index, num_classes)
+    return x_train_sub, y_train_sub
 
 def train_val_split(x_train, y_train, indices_perclass, num_classes, repeat):
     max_index = x_train.shape[0]//num_classes
@@ -117,3 +122,46 @@ def train_val_split(x_train, y_train, indices_perclass, num_classes, repeat):
 
 
     return (x_train_sub, y_train_sub), (x_val, y_val)
+
+
+def dataset_info(dataset):
+    assert dataset in ['data699', 'data711', 'data705_s3',
+                       'data705_s3_t10', 'data704', 'data701',
+                       'data700', 'data706','data703',
+                       'data701_rot', 'data707', 'data707_hog',
+                       'data708', 'data709', 'data710', 'data710_full']
+    if dataset in ['data700', 'data704']:
+        img_size = 28
+    if dataset in ['data701', 'data701_rot']:
+        img_size = 84
+    if dataset in ['data705_s3_t10', 'data705_s3']:
+        img_size = 151
+        num_classes = 32
+    if dataset == 'data706':
+        img_size = 64
+        num_classes = 6
+    if dataset == 'data703':
+        img_size = 130
+        num_classes = 2
+    if dataset in ['data707', 'data707_hog']:
+        img_size = 128
+        num_classes = 5
+    if dataset == 'data708':
+        img_size = 120
+        num_classes = 2
+    if dataset == 'data709':
+        img_size = 32
+        num_classes = 4
+    if dataset == 'data710':
+        img_size = 128
+        num_classes = 3
+    if dataset == 'data710_full':
+        img_size = 128
+        num_classes = 24
+    if dataset == 'data711':
+        img_size = 64
+        num_classes = 10
+    if dataset == 'data699':
+        img_size = 128
+        num_classes = 1000
+    return img_size, num_classes
