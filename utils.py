@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.io import loadmat
 import os
+import h5py
+from PIL import Image
 
 def new_index_matrix(max_index, indices_perclass, num_classes, repeat):
     seed = int('{}{}{}'.format(indices_perclass, num_classes, repeat))
@@ -35,18 +37,20 @@ def take_samples(data, labels, index, num_classes):
     return np.concatenate(indexed_data), np.concatenate(new_labels)
 
 
-def load_data(dataset, num_classes):
-    cache_file = os.path.join(dataset, 'customizedAffNIST.npz')
+def load_data(dataset, num_classes, datadir='data'):
+    cache_file = os.path.join(datadir, dataset, 'dataset.hdf5')
     if os.path.exists(cache_file):
-        print('loading data from cache file')
-        data = np.load(cache_file)
-        return (data['x_train'], data['y_train']), (data['x_test'], data['y_test'])
+        with h5py.File(cache_file, 'r') as f:
+            x_train, y_train = f['x_train'][()], f['y_train'][()]
+            x_test, y_test = f['x_test'][()], f['y_test'][()]
+            print('loaded from cache file data: x_traion {} x_test {}'.format(x_train.shape, x_test.shape))
+            return (x_train, y_train), (x_test, y_test)
 
     print('loading data from mat files')
     x_train, y_train, x_test, y_test = [], [], [], []
     for split in ['training', 'testing']:
         for classidx in range(num_classes):
-            datafile = os.path.join(dataset, '{}/dataORG_{}.mat'.format(split, classidx))
+            datafile = os.path.join(datadir, dataset, '{}/dataORG_{}.mat'.format(split, classidx))
             # loadmat(datafile)['xxO'] is of shape (H, W, N)
             data = loadmat(datafile)['xxO'].transpose([2, 0, 1]) # transpose to (N, H, W)
             label = np.zeros(data.shape[0], dtype=np.int64)+classidx
@@ -70,10 +74,12 @@ def load_data(dataset, num_classes):
     x_train = (x_train * 255.).astype(np.uint8)
     x_test = (x_test * 255.).astype(np.uint8)
 
-    # if args.dataset == 'data705_s3_t10':
-    #     x_train, x_test = resize(x_train, args.img_size), resize(x_test, args.img_size)
-
-    np.savez(cache_file, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
+    with h5py.File(cache_file, 'w') as f:
+        f.create_dataset('x_train', data=x_train)
+        f.create_dataset('y_train', data=y_train)
+        f.create_dataset('x_test', data=x_test)
+        f.create_dataset('y_test', data=y_test)
+        print('saved to {}'.format(cache_file))
 
     return (x_train, y_train), (x_test, y_test)
 

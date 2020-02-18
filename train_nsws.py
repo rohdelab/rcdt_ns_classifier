@@ -6,17 +6,15 @@ Created on Thu Feb 13 10:58:26 2020
 @author: Hasnet, Xuwang Yin
 """
 
+import argparse
 import multiprocessing as mp
 from pathlib import Path
 
-import h5py
-import numpy.linalg as LA
-import os
 from sklearn.metrics import accuracy_score
+import numpy.linalg as LA
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
 from utils import *
-import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
@@ -31,19 +29,40 @@ Rdown = 4  # downsample radon projections (w.r.t. angles)
 theta = np.linspace(0, 176, 180 // Rdown)
 radoncdt = RadonCDT(theta)
 
-
 def fun_rcdt_single(I):
     # I: (width, height)
     template = np.ones(I.shape, dtype=I.dtype)
     Ircdt = radoncdt.forward(x0_range, template / np.sum(template), x_range, I / np.sum(I), rm_edge)
     return Ircdt
-    # return Ircdt.reshape([Ircdt.shape[0]*Ircdt.shape[1]],order='F')
-
 
 def fun_rcdt_batch(data):
     # data: (n_samples, width, height)
     dataRCDT = [fun_rcdt_single(data[j, :, :] + eps) for j in range(data.shape[0])]
     return np.array(dataRCDT)
+
+def rcdt_parallel(X):
+    # X: (n_samples, width, height)
+    # template for RCDT
+
+    # calc RCDT of test images
+    print('Calculating RCDT ...')
+    splits = np.array_split(X, mp.cpu_count(), axis=0)
+    pl = mp.Pool(mp.cpu_count())
+
+    dataRCDT = pl.map(fun_rcdt_batch, splits)
+    rcdt_features = np.vstack(dataRCDT)  # (n_samples, proj_len, num_angles)
+    pl.close()
+    pl.join()
+
+    return rcdt_features
+
+def add_trans_samples(rcdt_features):
+    # rcdt_features: (n_samples, proj_len, num_angles)
+    # deformation vectors for  translation
+    v1, v2 = np.cos(theta), np.sin(theta)
+    v1 = np.repeat(v1[np.newaxis], rcdt_features.shape[1], axis=0)
+    v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
+    return np.concatenate([rcdt_features, v1[np.newaxis], v2[np.newaxis]])
 
 
 class SubSpaceClassifier:
@@ -101,38 +120,11 @@ class SubSpaceClassifier:
         return preds
 
 
-def rcdt_parallel(X):
-    # X: (n_samples, width, height)
-    # template for RCDT
-
-    # calc RCDT of test images
-    print('Calculate RCDT of test images')
-    splits = np.array_split(X, mp.cpu_count(), axis=0)
-    pl = mp.Pool(mp.cpu_count())
-
-    dataRCDT = pl.map(fun_rcdt_batch, splits)
-    rcdt_features = np.vstack(dataRCDT)  # (n_samples, proj_len, num_angles)
-    pl.close()
-    pl.join()
-
-    return rcdt_features
-
-
-def add_trans_samples(rcdt_features):
-    # rcdt_features: (n_samples, proj_len, num_angles)
-    # deformation vectors for  translation
-    v1, v2 = np.cos(theta), np.sin(theta)
-    v1 = np.repeat(v1[np.newaxis], rcdt_features.shape[1], axis=0)
-    v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
-    return np.concatenate([rcdt_features, v1[np.newaxis], v2[np.newaxis]])
-
-
 if __name__ == '__main__':
-    dataset = 'data700'
-    img_size, num_classes = dataset_config(dataset)
+    datadir = './data'
     # x_train: (n_samples, width, height)
-    (x_train, y_train), (x_test, y_test) = load_data('data700', num_classes=num_classes)
-    cache_file = os.path.join(dataset, 'rcdt.hdf5')
+    (x_train, y_train), (x_test, y_test) = load_data(args.dataset, num_classes, datadir)
+    cache_file = os.path.join(datadir, args.dataset, 'rcdt.hdf5')
     if os.path.exists(cache_file):
         with h5py.File(cache_file, 'r') as f:
             x_train, y_train = f['x_train'][()], f['y_train'][()]
@@ -157,13 +149,15 @@ if __name__ == '__main__':
             classifier = SubSpaceClassifier()
             classifier.fit(x_train_sub, y_train_sub, num_classes)
             preds = classifier.predict(x_test)
-            print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, (preds == y_test).mean()))
             accs.append(accuracy_score(y_test, preds))
             all_preds.append(preds)
+            print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, accuracy_score(y_test, preds)))
+
     accs = np.array(accs).reshape(-1, num_repeats)
     preds = np.stack(all_preds, axis=0)
     preds = preds.reshape([preds.shape[0] // num_repeats, num_repeats, preds.shape[1]])
-    results_dir = 'results/final/{}/'.format(dataset)
+
+    results_dir = 'results/final/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
     result_file = os.path.join(results_dir, 'nsws.hdf5')
     with h5py.File(result_file, 'w') as f:
