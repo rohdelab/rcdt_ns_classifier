@@ -132,8 +132,10 @@ def dataset_info(dataset):
                        'data708', 'data709', 'data710', 'data710_full']
     if dataset in ['data700', 'data704']:
         img_size = 28
+        num_classes = 10
     if dataset in ['data701', 'data701_rot']:
         img_size = 84
+        num_classes = 10
     if dataset in ['data705_s3_t10', 'data705_s3']:
         img_size = 151
         num_classes = 32

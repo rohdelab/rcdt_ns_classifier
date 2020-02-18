@@ -17,6 +17,7 @@ import multiprocessing as mp
 from utils import *
 import os
 import h5py
+from pathlib import Path
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
 
@@ -130,12 +131,11 @@ class SubSpaceClassifier:
             # generate the bases vectors
             # TODO check class_data is normalized (column mean = 0)
             class_data = X[y == class_idx]
-            print('classidx {}, class_data.shape {}'.format(class_idx, class_data.shape))
             class_data_trans = add_trans_samples(class_data)
             flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
-            print(flat.shape)
+            # print(flat.shape)
             u, s, vh = LA.svd(flat)
-            print(vh.shape, s.shape, u.shape)
+            # print(vh.shape, s.shape, u.shape)
             # Only use the largest 512 eigenvectors
             # Each row of basis is a eigenvector
             basis = vh[:flat.shape[0]][s > 1e-8][:512]
@@ -210,23 +210,24 @@ if __name__ == '__main__':
             x_test = rcdt_parallel(x_test)
             f.create_dataset('x_train', data=x_train)
             f.create_dataset('y_train', data=y_train)
-            f.create_datatest('x_test', data=x_test)
-            f.create_datatest('y_test', data=y_test)
+            f.create_dataset('x_test', data=x_test)
+            f.create_dataset('y_test', data=y_test)
             print('saved to {}'.format(cache_file))
 
-    for n_samples_perclass in [2**i for i in range(0, 13)]:
-        for repeat in range(5):
+    num_repeats = 5
+    results = []
+    for n_samples_perclass in [2**i for i in range(0, 10)]:
+        for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             classifier = SubSpaceClassifier()
             classifier.fit(x_train_sub, y_train_sub, num_classes)
             preds = classifier.predict(x_test)
             print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, (preds == y_test).mean()))
-
-    # print(x_test_rcdt.shape)
-    # plt.imshow(x_test_rcdt[0])
-    # plt.show()
-    # plt.imshow(x_test_rcdt[0, :, 0])
-    # plt.show()
+            results.append(accuracy_score(y_test, preds))
+    results = np.array(results).reshape(-1, num_repeats)
+    results_dir = 'results/final/{}/'.format(dataset)
+    Path(results_dir).mkdir(parents=True, exist_ok=True)
+    np.save(os.path.join(results_dir, 'nsws.npy'), results)
 
 
 
