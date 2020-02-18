@@ -24,7 +24,7 @@ from pytranskit.optrans.continuous.radoncdt import RadonCDT
 dataset = 'MNIST' # 'MNIST'/'AffMNIST'/'OAM'/'SignMNIST'/'Synthetic'/'LiverN'
 
 if dataset in ['MNIST']:
-    data_folder = '../DATA/data700'
+    data_folder = '../DATASET/MNIST'
     print(dataset + ': ' + data_folder)
     rm_edge = True
     num_classes = 10
@@ -32,7 +32,7 @@ if dataset in ['MNIST']:
     # classes = [1,5]
     po_max = 12  # maximum train samples = 2^po_max
 elif dataset in ['AffMNIST']:
-    data_folder = '../DATA/data701'
+    data_folder = '../DATASET/AffMNIST'
     print(dataset + ': ' + data_folder)
     rm_edge = True
     num_classes = 10
@@ -40,28 +40,28 @@ elif dataset in ['AffMNIST']:
     # classes = [1,5]
     po_max = 12  # maximum train samples = 2^po_max
 elif dataset in ['OAM']:
-    data_folder = '../DATA/data705_s3'
+    data_folder = '../DATASET/OAM'
     print(dataset + ': ' + data_folder)
     rm_edge = False
     num_classes = 32
     classes = range(num_classes)
     po_max = 9  # maximum train samples = 2^po_max
 elif dataset in ['SignMNIST']:
-    data_folder = '../DATA/data710'
+    data_folder = '../DATASET/SignMNIST'
     print(dataset + ': ' + data_folder)
     rm_edge = False
     num_classes = 3
     classes = range(num_classes)
     po_max = 10  # maximum train samples = 2^po_max
 elif dataset in ['Synthetic']:
-    data_folder = '../DATA/data699'
+    data_folder = '../DATASET/Synthetic'
     print(dataset + ': ' + data_folder)
     rm_edge = True
     num_classes = 1000
     classes = range(num_classes)
     po_max = 7  # maximum train samples = 2^po_max
 elif dataset in ['LiverN']:
-    data_folder = '../DATA/data703';
+    data_folder = '../DATASET/LiverN';
     print(dataset +': '+data_folder)
     rm_edge=False
     num_classes = 2
