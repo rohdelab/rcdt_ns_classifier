@@ -21,92 +21,71 @@ from pathlib import Path
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
 
-dataset = 'MNIST' # 'MNIST'/'AffMNIST'/'OAM'/'SignMNIST'/'Synthetic'
+dataset = 'MNIST'  # 'MNIST'/'AffMNIST'/'OAM'/'SignMNIST'/'Synthetic'
 
 if dataset in ['MNIST']:
     data_folder = '../DATA/data700'
-    print(dataset +': '+data_folder)
-    rm_edge=True
+    print(dataset + ': ' + data_folder)
+    rm_edge = True
     num_classes = 10
     classes = range(num_classes)
-    #classes = [1,5]
-    po_max = 12   # maximum train samples = 2^po_max
-elif  dataset in ['AffMNIST']:
+    # classes = [1,5]
+    po_max = 12  # maximum train samples = 2^po_max
+elif dataset in ['AffMNIST']:
     data_folder = '../DATA/data701'
-    print(dataset +': '+data_folder)
-    rm_edge=True
+    print(dataset + ': ' + data_folder)
+    rm_edge = True
     num_classes = 10
     classes = range(num_classes)
-    #classes = [1,5]
-    po_max = 12   # maximum train samples = 2^po_max
+    # classes = [1,5]
+    po_max = 12  # maximum train samples = 2^po_max
 elif dataset in ['OAM']:
     data_folder = '../DATA/data705_s3'
-    print(dataset +': '+data_folder)
-    rm_edge=False
+    print(dataset + ': ' + data_folder)
+    rm_edge = False
     num_classes = 32
     classes = range(num_classes)
-    po_max = 9   # maximum train samples = 2^po_max
+    po_max = 9  # maximum train samples = 2^po_max
 elif dataset in ['SignMNIST']:
-    data_folder = '../DATA/data710';
-    print(dataset +': '+data_folder)
-    rm_edge=False
+    data_folder = '../DATA/data710'
+    print(dataset + ': ' + data_folder)
+    rm_edge = False
     num_classes = 3
     classes = range(num_classes)
-    po_max = 10   # maximum train samples = 2^po_max
+    po_max = 10  # maximum train samples = 2^po_max
 elif dataset in ['Synthetic']:
-    data_folder = '../DATA/data699';
-    print(dataset +': '+data_folder)
-    rm_edge=True
+    data_folder = '../DATA/data699'
+    print(dataset + ': ' + data_folder)
+    rm_edge = True
     num_classes = 1000
     classes = range(num_classes)
-    po_max = 7   # maximum train samples = 2^po_max
+    po_max = 7  # maximum train samples = 2^po_max
 
-po = range(0,po_max+1 ,1)
-tr_split = np.power(2,po)
+po = range(0, po_max + 1, 1)
+tr_split = np.power(2, po)
 N_exp = 1
 
-eps=1e-6
-x0_range = [0,1]
-x_range = [0,1]
-Rdown = 4   # downsample radon projections (w.r.t. angles)
-theta = np.linspace(0,176,180/Rdown)
-
-
+eps = 1e-6
+x0_range = [0, 1]
+x_range = [0, 1]
+Rdown = 4  # downsample radon projections (w.r.t. angles)
+theta = np.linspace(0, 176, 180 / Rdown)
 radoncdt = RadonCDT(theta)
 
-
-
-def fun_load_train_data_single(cl):
-    data = loadmat(data_folder+'/org/training/dataORG_'+str(classes[cl])+'.mat')['xxO']
-    data[data<0]=0
-    label = cl*np.ones([1,data.shape[2]])
-    return (data, label)
-
-def fun_load_train_data_batch(nClass):
-    data = [fun_load_train_data_single(j) for j in nClass]
-    return data
-
-def fun_load_test_data_single(cl):
-    data = loadmat(data_folder+'/org/testing/dataORG_'+str(classes[cl])+'.mat')['xxO']
-    data[data<0]=0
-    label = cl*np.ones([1,data.shape[2]])
-    return (data, label)
-
-def fun_load_test_data_batch(nClass):
-    data = [fun_load_test_data_single(j) for j in nClass]
-    return data
 
 def fun_rcdt_single(I):
     # I: (width, height)
     template = np.ones(I.shape, dtype=I.dtype)
-    Ircdt = radoncdt.forward(x0_range, template/np.sum(template), x_range, I/np.sum(I), rm_edge)
+    Ircdt = radoncdt.forward(x0_range, template / np.sum(template), x_range, I / np.sum(I), rm_edge)
     return Ircdt
     # return Ircdt.reshape([Ircdt.shape[0]*Ircdt.shape[1]],order='F')
 
+
 def fun_rcdt_batch(data):
     # data: (n_samples, width, height)
-    dataRCDT = [fun_rcdt_single(data[j,:,:] + eps) for j in range(data.shape[0])]
+    dataRCDT = [fun_rcdt_single(data[j, :, :] + eps) for j in range(data.shape[0])]
     return np.array(dataRCDT)
+
 
 class SubSpaceClassifier:
     def __init__(self):
@@ -141,7 +120,6 @@ class SubSpaceClassifier:
             basis = vh[:flat.shape[0]][s > 1e-8][:512]
             self.subspaces.append(basis)
 
-
     def predict(self, X):
         """Predict using the linear model
         Parameters
@@ -156,12 +134,13 @@ class SubSpaceClassifier:
         D = []
         for class_idx in range(self.num_classes):
             basis = self.subspaces[class_idx]
-            proj = X @ basis.T # (n_samples, n_basis)
+            proj = X @ basis.T  # (n_samples, n_basis)
             projR = proj @ basis  # (n_samples, n_features)
             D.append(LA.norm(projR - X, axis=1))
         D = np.stack(D, axis=0)  # (num_classes, n_samples)
-        preds = np.argmin(D, axis=0) # n_samples
+        preds = np.argmin(D, axis=0)  # n_samples
         return preds
+
 
 def rcdt_parallel(X):
     # X: (n_samples, width, height)
@@ -179,6 +158,7 @@ def rcdt_parallel(X):
 
     return rcdt_features
 
+
 def add_trans_samples(rcdt_features):
     # rcdt_features: (n_samples, proj_len, num_angles)
     # deformation vectors for  translation
@@ -189,15 +169,12 @@ def add_trans_samples(rcdt_features):
     v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
     return np.concatenate([rcdt_features, v1[np.newaxis], v2[np.newaxis]])
 
+
 if __name__ == '__main__':
     dataset = 'data700'
     img_size, num_classes = dataset_info(dataset)
     # x_train: (n_samples, width, height)
     (x_train, y_train), (x_test, y_test) = load_data('data700', num_classes=num_classes)
-
-    # perm = np.random.permutation(x_train.shape[0])
-    # x_train, y_train = x_train[perm], y_train[perm]
-
     cache_file = os.path.join(dataset, 'rcdt.hdf5')
     if os.path.exists(cache_file):
         with h5py.File(cache_file, 'r') as f:
@@ -214,21 +191,25 @@ if __name__ == '__main__':
             f.create_dataset('y_test', data=y_test)
             print('saved to {}'.format(cache_file))
 
-    num_repeats = 5
-    results = []
-    for n_samples_perclass in [2**i for i in range(0, 10)]:
+    num_repeats = 10
+    accs = []
+    all_preds = []
+    for n_samples_perclass in [2 ** i for i in range(0, 2)]:
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             classifier = SubSpaceClassifier()
             classifier.fit(x_train_sub, y_train_sub, num_classes)
             preds = classifier.predict(x_test)
             print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, (preds == y_test).mean()))
-            results.append(accuracy_score(y_test, preds))
-    results = np.array(results).reshape(-1, num_repeats)
+            accs.append(accuracy_score(y_test, preds))
+            all_preds.append(preds)
+    accs = np.array(accs).reshape(-1, num_repeats)
+    preds = np.stack(all_preds, axis=0)
+    preds = preds.reshape([preds.shape[0] // num_repeats, num_repeats, preds.shape[1]])
     results_dir = 'results/final/{}/'.format(dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
-    np.save(os.path.join(results_dir, 'nsws.npy'), results)
-
-
-
-
+    result_file = os.path.join(results_dir, 'nsws.hdf5')
+    with h5py.File(result_file, 'w') as f:
+        f.create_dataset('accs', data=accs)
+        f.create_dataset('preds', data=preds)
+        f.create_dataset('y_test', data=y_test)
