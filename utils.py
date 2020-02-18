@@ -123,7 +123,7 @@ def train_val_split(x_train, y_train, indices_perclass, num_classes, repeat):
 
     return (x_train_sub, y_train_sub), (x_val, y_val)
 
-
+"""
 def dataset_info(dataset):
     assert dataset in ['data699', 'data711', 'data705_s3',
                        'data705_s3_t10', 'data704', 'data701',
@@ -167,3 +167,38 @@ def dataset_info(dataset):
         img_size = 128
         num_classes = 1000
     return img_size, num_classes
+"""
+
+def dataset_config(dataset):
+    assert dataset in ['AffMNIST', 'LiverN', 'MNIST', 'OAM',  'SignMNIST', 'Synthetic']
+    if dataset in ['MNIST']:
+        rm_edge = True
+        num_classes = 10
+        po_train_max = 12  # maximum train samples = 2^po_max
+        img_size = 28
+    elif dataset in ['AffMNIST']:
+        rm_edge = True
+        num_classes = 10
+        img_size = 84
+        po_train_max = 12  # maximum train samples = 2^po_max
+    elif dataset in ['OAM']:
+        rm_edge = False
+        num_classes = 32
+        img_size = 151
+        po_train_max = 9  # maximum train samples = 2^po_max
+    elif dataset in ['SignMNIST']:
+        rm_edge = False
+        num_classes = 3
+        img_size = 128
+        po_train_max = 10  # maximum train samples = 2^po_max
+    elif dataset in ['Synthetic']:
+        rm_edge = True
+        num_classes = 1000
+        img_size = 128
+        po_train_max = 7  # maximum train samples = 2^po_max
+    elif dataset in ['LiverN']:
+        rm_edge=False
+        num_classes = 2
+        po_train_max = 8   # maximum train samples = 2^po_max
+
+    return num_classes, img_size, po_train_max, rm_edge

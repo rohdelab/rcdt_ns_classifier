@@ -6,77 +6,29 @@ Created on Thu Feb 13 10:58:26 2020
 @author: Hasnet, Xuwang Yin
 """
 
-import numpy as np
-import numpy.linalg as LA
-from scipy.io import loadmat, savemat
-import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_recall_fscore_support
-import time
 import multiprocessing as mp
-from utils import *
-import os
-import h5py
 from pathlib import Path
 
+import h5py
+import numpy.linalg as LA
+import os
+from sklearn.metrics import accuracy_score
+
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
+from utils import *
+import argparse
 
-dataset = 'MNIST' # 'MNIST'/'AffMNIST'/'OAM'/'SignMNIST'/'Synthetic'/'LiverN'
+parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', type=str, required=True)
+args = parser.parse_args()
 
-if dataset in ['MNIST']:
-    data_folder = '../DATA/data700'
-    print(dataset + ': ' + data_folder)
-    rm_edge = True
-    num_classes = 10
-    classes = range(num_classes)
-    # classes = [1,5]
-    po_max = 12  # maximum train samples = 2^po_max
-elif dataset in ['AffMNIST']:
-    data_folder = '../DATA/data701'
-    print(dataset + ': ' + data_folder)
-    rm_edge = True
-    num_classes = 10
-    classes = range(num_classes)
-    # classes = [1,5]
-    po_max = 12  # maximum train samples = 2^po_max
-elif dataset in ['OAM']:
-    data_folder = '../DATA/data705_s3'
-    print(dataset + ': ' + data_folder)
-    rm_edge = False
-    num_classes = 32
-    classes = range(num_classes)
-    po_max = 9  # maximum train samples = 2^po_max
-elif dataset in ['SignMNIST']:
-    data_folder = '../DATA/data710'
-    print(dataset + ': ' + data_folder)
-    rm_edge = False
-    num_classes = 3
-    classes = range(num_classes)
-    po_max = 10  # maximum train samples = 2^po_max
-elif dataset in ['Synthetic']:
-    data_folder = '../DATA/data699'
-    print(dataset + ': ' + data_folder)
-    rm_edge = True
-    num_classes = 1000
-    classes = range(num_classes)
-    po_max = 7  # maximum train samples = 2^po_max
-elif dataset in ['LiverN']:
-    data_folder = '../DATA/data703';
-    print(dataset +': '+data_folder)
-    rm_edge=False
-    num_classes = 2
-    classes = range(num_classes)
-    po_max = 8   # maximum train samples = 2^po_max
-
-po = range(0, po_max + 1, 1)
-tr_split = np.power(2, po)
-N_exp = 1
+num_classes, img_size, po_train_max, rm_edge = dataset_config(args.dataset)
 
 eps = 1e-6
 x0_range = [0, 1]
 x_range = [0, 1]
 Rdown = 4  # downsample radon projections (w.r.t. angles)
-theta = np.linspace(0, 176, 180 / Rdown)
+theta = np.linspace(0, 176, 180 // Rdown)
 radoncdt = RadonCDT(theta)
 
 
@@ -169,8 +121,6 @@ def rcdt_parallel(X):
 def add_trans_samples(rcdt_features):
     # rcdt_features: (n_samples, proj_len, num_angles)
     # deformation vectors for  translation
-    Rdown = 4  # downsample radon projections (w.r.t. angles)
-    theta = np.linspace(0, 176, 180 // Rdown)
     v1, v2 = np.cos(theta), np.sin(theta)
     v1 = np.repeat(v1[np.newaxis], rcdt_features.shape[1], axis=0)
     v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
@@ -179,7 +129,7 @@ def add_trans_samples(rcdt_features):
 
 if __name__ == '__main__':
     dataset = 'data700'
-    img_size, num_classes = dataset_info(dataset)
+    img_size, num_classes = dataset_config(dataset)
     # x_train: (n_samples, width, height)
     (x_train, y_train), (x_test, y_test) = load_data('data700', num_classes=num_classes)
     cache_file = os.path.join(dataset, 'rcdt.hdf5')
@@ -201,7 +151,7 @@ if __name__ == '__main__':
     num_repeats = 10
     accs = []
     all_preds = []
-    for n_samples_perclass in [2 ** i for i in range(0, 2)]:
+    for n_samples_perclass in [2 ** i for i in range(0, po_train_max+1)]:
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             classifier = SubSpaceClassifier()

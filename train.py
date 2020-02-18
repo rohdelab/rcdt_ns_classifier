@@ -31,7 +31,7 @@ parser.add_argument('--model', default='vgg11', type=str, choices=['vgg11', 'sha
 parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
 
-img_size, num_classes = dataset_info(args.dataset)
+num_classes, img_size, po_train_max, _ = dataset_config(args.dataset)
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -55,9 +55,9 @@ if __name__ == '__main__':
         model = models.resnet18(num_classes=num_classes).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
-    for n_samples_perclass in [2**i for i in range(0, 13)]:
+    for n_samples_perclass in [2**i for i in range(0, po_train_max+1)]:
     # for n_samples_perclass in [512]:
-        for repeat in range(5):
+        for repeat in range(10):
             model.load_state_dict(torch.load('./model_init.pth'))
             (x_train_sub, y_train_sub), (x_val, y_val) = train_val_split(x_train, y_train, n_samples_perclass, num_classes, repeat)
             if x_val is not None:
