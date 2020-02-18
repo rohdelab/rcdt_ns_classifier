@@ -21,7 +21,7 @@ from pathlib import Path
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
 
-dataset = 'MNIST'  # 'MNIST'/'AffMNIST'/'OAM'/'SignMNIST'/'Synthetic'
+dataset = 'MNIST' # 'MNIST'/'AffMNIST'/'OAM'/'SignMNIST'/'Synthetic'/'LiverN'
 
 if dataset in ['MNIST']:
     data_folder = '../DATA/data700'
@@ -60,6 +60,13 @@ elif dataset in ['Synthetic']:
     num_classes = 1000
     classes = range(num_classes)
     po_max = 7  # maximum train samples = 2^po_max
+elif dataset in ['LiverN']:
+    data_folder = '../DATA/data703';
+    print(dataset +': '+data_folder)
+    rm_edge=False
+    num_classes = 2
+    classes = range(num_classes)
+    po_max = 8   # maximum train samples = 2^po_max
 
 po = range(0, po_max + 1, 1)
 tr_split = np.power(2, po)
