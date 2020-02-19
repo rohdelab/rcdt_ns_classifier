@@ -11,13 +11,19 @@ import multiprocessing as mp
 from pathlib import Path
 
 from sklearn.metrics import accuracy_score
+import numpy as np
 import numpy.linalg as LA
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
 from utils import *
 
 import time
-import cupy as cp
+
+__GPU__ = 1
+
+if __GPU__:
+    import cupy as cp
+    
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
@@ -94,8 +100,11 @@ class SubSpaceClassifier:
             class_data_trans = add_trans_samples(class_data)
             flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
             # print(flat.shape)
-            #u, s, vh = LA.svd(flat)
-            u, s, vh = cp.linalg.svd(cp.array(flat))
+            
+            if __GPU__:
+                u, s, vh = cp.linalg.svd(cp.array(flat))
+            else:
+                u, s, vh = LA.svd(flat)
             # print(vh.shape, s.shape, u.shape)
             # Only use the largest 512 eigenvectors
             # Each row of basis is a eigenvector
@@ -116,14 +125,23 @@ class SubSpaceClassifier:
         D = []
         for class_idx in range(self.num_classes):
             basis = self.subspaces[class_idx]
-            #proj = X @ basis.T  # (n_samples, n_basis)
-            proj = cp.matmul(X,basis.T)
-            #projR = proj @ basis  # (n_samples, n_features)
-            projR = cp.matmul(proj,basis)
-            D.append(cp.linalg.norm(projR - X, axis=1))
-        D = cp.stack(D, axis=0)  # (num_classes, n_samples)
-        preds = cp.argmin(D, axis=0)  # n_samples
-        return cp.asnumpy(preds)
+            
+            if __GPU__:
+                proj = cp.matmul(X,basis.T)
+                projR = cp.matmul(proj,basis)
+                D.append(cp.linalg.norm(projR - X, axis=1))
+            else:
+                proj = X @ basis.T  # (n_samples, n_basis)
+                projR = proj @ basis  # (n_samples, n_features)
+                D.append(LA.norm(projR - X, axis=1))
+        if __GPU__:
+            D = cp.stack(D, axis=0)  # (num_classes, n_samples)
+            preds = cp.argmin(D, axis=0)  # n_samples
+            return cp.asnumpy(preds)
+        else:
+            D = np.stack(D, axis=0)
+            preds = np.argmin(D, axis=0)
+            return preds
 
 
 if __name__ == '__main__':
@@ -149,7 +167,8 @@ if __name__ == '__main__':
     num_repeats = 10
     accs = []
     all_preds = []
-    x_test = cp.array(x_test)
+    if __GPU__:
+        x_test = cp.array(x_test)
     for n_samples_perclass in [2 ** i for i in range(0, po_train_max+1)]:
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
