@@ -52,11 +52,19 @@ r1 = np.arange(len(costs[0]))
 r2 = [x + barWidth for x in r1]
 r3 = [x + barWidth for x in r2]
 
+def labels(X, Y):
+    for x, y in zip(X, Y):
+        if y == 0:
+            plt.text(x=x - 0.08, y=y + 0.01, s='n/a', size=6)
+        else:
+            plt.text(x=x - 0.08, y=y + 0.01, s='{:.3f}'.format(y), size=6)
+
 rect = plt.bar(r1, costs[0], color='tab:red', width=barWidth, edgecolor='white', label='shallowcnn')
-# height = rect.get_height()
-# ax.text(rect.get_x() + rect.get_width()/2., 1.05*height, '%d' % int(height), ha='center', va='bottom')
+labels(r1, costs[0])
 rect = plt.bar(r2, costs[1], color='tab:green', width=barWidth, edgecolor='white', label='resnet18')
+labels(r2, costs[1])
 rect = plt.bar(r3, costs[2], color='tab:blue', width=barWidth, edgecolor='white', label='vgg11')
+labels(r3, costs[2])
 
 # Add xticks on the middle of the group bars
 plt.ylabel('GFLOPS', fontweight='bold')
@@ -65,6 +73,8 @@ plt.xticks([r + barWidth for r in range(len(costs[0]))], ['28x28', '32x32', '64x
 
 # Create legend & Show graphic
 plt.legend()
+# plt.subplots_adjust(bottom= 0.2, top = 0.8)
 plt.title('Single Input Test GFLOPS of Nueral Networks Models')
+plt.savefig('flops.pdf')
 plt.show()
 
