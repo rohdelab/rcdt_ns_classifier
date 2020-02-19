@@ -19,7 +19,7 @@ from utils import *
 
 import time
 
-__GPU__ = 1
+__GPU__ = True
 
 if __GPU__:
     import cupy as cp
@@ -37,6 +37,41 @@ x_range = [0, 1]
 Rdown = 4  # downsample radon projections (w.r.t. angles)
 theta = np.linspace(0, 176, 180 // Rdown)
 radoncdt = RadonCDT(theta)
+
+
+def gs_cofficient(v1, v2):
+    if __GPU__:
+        return cp.dot(v2, v1) / cp.dot(v1, v1)
+    else:
+        return np.dot(v2, v1) / np.dot(v1, v1)
+
+def proj(v1, v2):
+    if __GPU__:
+        return cp.multiply(gs_cofficient(v1, v2), v1)
+    else:
+        return np.multiply(gs_cofficient(v1, v2), v1)
+    
+def gs_orthogonalization(X):
+    for i in range(len(X)):
+        if i==0:
+            Y = X[i]
+            if __GPU__:
+                Y = Y[cp.newaxis]
+            else:
+                Y = Y[np.newaxis]
+            continue
+        else:
+            temp_vec = X[i]
+        for inY in Y :
+            proj_vec = proj(inY, X[i])
+            temp_vec = temp_vec - proj_vec
+        if __GPU__:
+            Y = cp.concatenate((Y,temp_vec[cp.newaxis]),axis=0)
+        else:
+            Y = np.concatenate((Y,temp_vec[np.newaxis]),axis=0)
+    return Y
+
+
 
 def fun_rcdt_single(I):
     # I: (width, height)
@@ -99,16 +134,33 @@ class SubSpaceClassifier:
             class_data = X[y == class_idx]
             class_data_trans = add_trans_samples(class_data)
             flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
-            # print(flat.shape)
+            
+            u, s, vh = LA.svd(flat)
+            basis = vh[:flat.shape[0]][s > 1e-8][:512]
             
             if __GPU__:
-                u, s, vh = cp.linalg.svd(cp.array(flat))
-            else:
-                u, s, vh = LA.svd(flat)
-            # print(vh.shape, s.shape, u.shape)
+                basis = cp.array(basis)
+                # using SVD
+                # u, s, vh = cp.linalg.svd(cp.array(flat),full_matrices=False)
+                # basis = vh[:flat.shape[0]][s > 1e-8][:512]
+                
+                # using Gram-Schmidt Ortho-Normalization
+                # vh = gs_orthogonalization(cp.array(flat))
+                # vh = vh/cp.linalg.norm(vh,axis=1).reshape(vh.shape[0],1)
+                # basis = vh[:flat.shape[0]][:512]
+            # else:
+                # using SVD
+                # u, s, vh = LA.svd(flat)
+                # basis = vh[:flat.shape[0]][s > 1e-8][:512]
+                
+                # using Gram-Schmidt Ortho-Normalization
+                # vh = gs_orthogonalization(flat)
+                # vh = vh/LA.norm(vh,axis=1).reshape(vh.shape[0],1)
+                # basis = vh[:flat.shape[0]][:512]
+
             # Only use the largest 512 eigenvectors
             # Each row of basis is a eigenvector
-            basis = vh[:flat.shape[0]][s > 1e-8][:512]
+            
             self.subspaces.append(basis)
 
     def predict(self, X):
@@ -173,11 +225,12 @@ if __name__ == '__main__':
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             classifier = SubSpaceClassifier()
-            classifier.fit(x_train_sub, y_train_sub, num_classes)
             tic = time.time()
+            classifier.fit(x_train_sub, y_train_sub, num_classes)
+            
             preds = classifier.predict(x_test)
             toc = time.time()
-            print('Runtime of predict function: {} seconds'.format(toc-tic))
+            print('Runtime of fit+predict functions: {} seconds'.format(toc-tic))
             accs.append(accuracy_score(y_test, preds))
             all_preds.append(preds)
             print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, accuracy_score(y_test, preds)))
