@@ -4,10 +4,10 @@ import os
 import h5py
 from PIL import Image
 
-def new_index_matrix(max_index, indices_perclass, num_classes, repeat):
-    seed = int('{}{}{}'.format(indices_perclass, num_classes, repeat))
+def new_index_matrix(max_index, n_samples_perclass, num_classes, repeat):
+    seed = int('{}{}{}'.format(n_samples_perclass, num_classes, repeat))
     np.random.seed(seed)
-    return np.random.randint(0, max_index, (num_classes, indices_perclass))
+    return np.random.randint(0, max_index, (num_classes, n_samples_perclass))
 
 
 def resize(X, target_size):
@@ -95,18 +95,18 @@ def load_data_3D(dataset, num_classes):
     x_test = np.repeat(x_test, axis=1, repeats=3)
     return (x_train, y_train), (x_test, y_test)
 
-def take_train_samples(x_train, y_train, indices_perclass, num_classes, repeat):
+def take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat):
     max_index = x_train.shape[0] // num_classes
-    train_index = new_index_matrix(max_index, indices_perclass, num_classes, repeat)
+    train_index = new_index_matrix(max_index, n_samples_perclass, num_classes, repeat)
     x_train_sub, y_train_sub = take_samples(x_train, y_train, train_index, num_classes)
     return x_train_sub, y_train_sub
 
-def train_val_split(x_train, y_train, indices_perclass, num_classes, repeat):
+def train_val_split(x_train, y_train, n_samples_perclass, num_classes, repeat):
     max_index = x_train.shape[0]//num_classes
-    train_index = new_index_matrix(max_index, indices_perclass, num_classes, repeat)
+    train_index = new_index_matrix(max_index, n_samples_perclass, num_classes, repeat)
 
-    val_samples = indices_perclass // 10 # Use 10% for validation
-    train_samples = indices_perclass - val_samples
+    val_samples = n_samples_perclass // 10 # Use 10% for validation
+    train_samples = n_samples_perclass - val_samples
 
     if val_samples >= 1:
         val_index = train_index[:, -val_samples:]
@@ -122,9 +122,9 @@ def train_val_split(x_train, y_train, indices_perclass, num_classes, repeat):
     print('train data shape {}'.format(x_train_sub.shape))
 
     if x_val is not None:
-        assert x_val.shape[0] + x_train_sub.shape[0] == indices_perclass*num_classes
+        assert x_val.shape[0] + x_train_sub.shape[0] == n_samples_perclass*num_classes
     else:
-        assert x_train_sub.shape[0] == indices_perclass*num_classes
+        assert x_train_sub.shape[0] == n_samples_perclass*num_classes
 
 
     return (x_train_sub, y_train_sub), (x_val, y_val)
@@ -200,11 +200,12 @@ def dataset_config(dataset):
     elif dataset in ['Synthetic']:
         rm_edge = True
         num_classes = 1000
-        img_size = 128
+        img_size = 64
         po_train_max = 7  # maximum train samples = 2^po_max
     elif dataset in ['LiverN']:
         rm_edge=False
         num_classes = 2
+        img_size = 130
         po_train_max = 8   # maximum train samples = 2^po_max
 
     return num_classes, img_size, po_train_max, rm_edge
