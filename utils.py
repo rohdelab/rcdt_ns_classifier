@@ -5,10 +5,14 @@ import h5py
 from PIL import Image
 from sklearn.model_selection import train_test_split
 
-def new_index_matrix(max_index, n_samples_perclass, num_classes, repeat):
+def new_index_matrix(max_index, n_samples_perclass, num_classes, repeat, y_train):
     seed = int('{}{}{}'.format(n_samples_perclass, num_classes, repeat))
     np.random.seed(seed)
-    return np.random.randint(0, max_index, (num_classes, n_samples_perclass))
+    index = np.zeros([num_classes, n_samples_perclass], dtype=np.int64)
+    for classidx in range(num_classes):
+        max_samples = (y_train == classidx).sum()
+        index[classidx] = np.random.randint(0, max_samples, (n_samples_perclass))
+    return index
 
 
 def resize(X, target_size):
@@ -62,9 +66,9 @@ def load_data(dataset, num_classes, datadir='data'):
             else:
                 x_test.append(data)
                 y_test.append(label)
-    min_samples = min([x.shape[0] for x in x_train])
-    x_train = [x[:min_samples] for x in x_train]
-    y_train = [y[:min_samples] for y in y_train]
+    # min_samples = min([x.shape[0] for x in x_train])
+    # x_train = [x[:min_samples] for x in x_train]
+    # y_train = [y[:min_samples] for y in y_train]
     x_train, y_train = np.concatenate(x_train), np.concatenate(y_train)
     x_test, y_test = np.concatenate(x_test), np.concatenate(y_test)
     print('x_train.shape {} x_test.shape {}'.format(x_train.shape, x_test.shape))
@@ -98,21 +102,37 @@ def load_data_3D(dataset, num_classes):
 
 def take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat):
     max_index = x_train.shape[0] // num_classes
-    train_index = new_index_matrix(max_index, n_samples_perclass, num_classes, repeat)
+    train_index = new_index_matrix(max_index, n_samples_perclass, num_classes, repeat, y_train)
     x_train_sub, y_train_sub = take_samples(x_train, y_train, train_index, num_classes)
     return x_train_sub, y_train_sub
 
 def take_train_val_samples(x_train, y_train, n_samples_perclass, num_classes, repeat):
-    x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
+    max_index = x_train.shape[0]//num_classes
+    train_index = new_index_matrix(max_index, n_samples_perclass, num_classes, repeat, y_train)
 
     val_samples = n_samples_perclass // 10 # Use 10% for validation
-    if val_samples == 0:
-        return (x_train_sub, y_train_sub), (None, None)
 
-    # Function works when val_samples = 0: x_val.shape[0] = 0 if val_samples = 0
-    x_train, y_train, x_val, y_val = train_test_split(x_train_sub, y_train_sub, test_size=val_samples, random_state=42)
+    if val_samples >= 1:
+        val_index = train_index[:, :val_samples]
+        x_val, y_val = take_samples(x_train, y_train, val_index, num_classes)
+        assert x_val.shape[0] == y_val.shape[0]
+        print('validation data shape {}'.format(x_val.shape), end=' ')
+    else:
+        x_val, y_val = None, None
+        print('validation data {}'.format(x_val), end=' ')
 
-    return (x_train, y_train), (x_val, y_val)
+    train_sub_index = train_index[:, val_samples:]
+    x_train_sub, y_train_sub = take_samples(x_train, y_train, train_sub_index, num_classes)
+    print('train data shape {}'.format(x_train_sub.shape))
+
+    if x_val is not None:
+        assert x_val.shape[0] + x_train_sub.shape[0] == n_samples_perclass*num_classes
+    else:
+        assert x_train_sub.shape[0] == n_samples_perclass*num_classes
+
+
+    return (x_train_sub, y_train_sub), (x_val, y_val)
+
 
 """
 def dataset_info(dataset):

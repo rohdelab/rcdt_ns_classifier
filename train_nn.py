@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
     results_dir = 'results/final/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
-    result_file = os.path.join(results_dir, 'nn.hdf5')
+    result_file = os.path.join(results_dir, 'nn_{}.hdf5'.format(args.model))
     with h5py.File(result_file, 'w') as f:
         f.create_dataset('accs', data=accs)
         f.create_dataset('preds', data=preds)
