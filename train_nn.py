@@ -67,7 +67,7 @@ if __name__ == '__main__':
         for repeat in range(num_repeats):
             model.load_state_dict(torch.load('./model_init.pth'))
             (x_train_sub, y_train_sub), (x_val, y_val) = take_train_val_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
-            x_val_shape = 0 if x_val is None else x_vals.shape
+            x_val_shape = 0 if x_val is None else x_val.shape
             print('============== perclass samples {} repeat {} x_train_sub.shape {} x_val.shape {} ============'.format(n_samples_perclass, repeat, x_train_sub.shape, x_val_shape))
 
             criterion = nn.CrossEntropyLoss()
