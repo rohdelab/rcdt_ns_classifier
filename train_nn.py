@@ -20,6 +20,7 @@ from PIL import Image
 from tqdm import tqdm
 from utils import *
 from model import MNISTNet
+from sklearn.metrics import accuracy_score
 # from cifar_models import resnet18
 
 
@@ -27,9 +28,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--epochs', default=50, type=int)
-parser.add_argument('--model', default='vgg11', type=str, choices=['vgg11', 'shallowcnn', 'resnet18'])
+parser.add_argument('--model', default='shallowcnn', type=str, choices=['vgg11', 'shallowcnn', 'resnet18'])
 parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
+
+if args.dataset == 'MNIST':
+    assert args.model not in ['vgg11']
 
 num_classes, img_size, po_train_max, _ = dataset_config(args.dataset)
 
@@ -55,15 +59,16 @@ if __name__ == '__main__':
         model = models.resnet18(num_classes=num_classes).to(device)
     torch.save(model.state_dict(), './model_init.pth')
 
+    accs = []
+    all_preds = []
+    num_repeats = 10
     for n_samples_perclass in [2**i for i in range(0, po_train_max+1)]:
     # for n_samples_perclass in [512]:
-        for repeat in range(10):
+        for repeat in range(num_repeats):
             model.load_state_dict(torch.load('./model_init.pth'))
-            (x_train_sub, y_train_sub), (x_val, y_val) = train_val_split(x_train, y_train, n_samples_perclass, num_classes, repeat)
-            if x_val is not None:
-                print('============== perclass samples {} repeat {} x_train_sub.shape {} x_val.shape {} ============'.format(n_samples_perclass, repeat, x_train_sub.shape, x_val.shape))
-            else:
-                print('============== perclass samples {} repeat {} x_train_sub.shape {} x_val: None ============'.format(n_samples_perclass, repeat, x_train_sub.shape))
+            (x_train_sub, y_train_sub), (x_val, y_val) = take_train_val_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
+            x_val_shape = 0 if x_val is None else x_vals.shape
+            print('============== perclass samples {} repeat {} x_train_sub.shape {} x_val.shape {} ============'.format(n_samples_perclass, repeat, x_train_sub.shape, x_val_shape))
 
             criterion = nn.CrossEntropyLoss()
             optimizer = optim.Adam(model.parameters(), lr=5e-4)
@@ -155,14 +160,20 @@ if __name__ == '__main__':
                 print(state['confusion_matrix'])
                 with open(ckpt_path, 'wb') as f:
                     pickle.dump(state, f)
-                # # to load the data
-                # with open(ckpt_path, 'rb') as f:
-                #     state = pickle.load(f)
-
                 print('saved to {}'.format(ckpt_path))
+                accs.append(accuracy_score(y_test, y_pred))
+                all_preds.append(y_pred)
+              
 
+    accs = np.array(accs).reshape(-1, num_repeats)
+    preds = np.stack(all_preds, axis=0)
+    preds = preds.reshape([preds.shape[0] // num_repeats, num_repeats, preds.shape[1]])
 
-    # plt.imshow(make_grid(torch.from_numpy(x_train[:16]).view(-1, 1, args.img_size, args.img_size), pad_value=1).permute(1, 2, 0))
-    # plt.savefig('out.png')
-    # plt.show()
-
+    results_dir = 'results/final/{}/'.format(args.dataset)
+    Path(results_dir).mkdir(parents=True, exist_ok=True)
+    result_file = os.path.join(results_dir, 'nn.hdf5')
+    with h5py.File(result_file, 'w') as f:
+        f.create_dataset('accs', data=accs)
+        f.create_dataset('preds', data=preds)
+        f.create_dataset('y_test', data=y_test)
+    print('saved to ' + result_file)
