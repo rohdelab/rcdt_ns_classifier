@@ -4,8 +4,25 @@ import pickle
 import os
 import sys
 import h5py
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import cohen_kappa_score
 
 result_dir = sys.argv[1]
+
+def precision_recall_fscore_stats(multipreds, y_test):
+    result = []
+    for i in range(multipreds.shape[0]):
+        precision, recall, f_score, _ = precision_recall_fscore_support(y_test, multipreds[i], average='weighted')
+        kappa = cohen_kappa_score(y_test, multipreds[i])
+        result.append((precision, recall, f_score, kappa))
+    result = np.stack(result, axis=0)
+    return np.mean(result, axis=0)
+
+def accs_stats(multipreds, y_test):
+    accs = [accuracy_score(y_test, multipreds[i]) for i in range(multipreds.shape[0])]
+    return np.mean(accs), np.std(accs)
+
 
 def mean_std_stats(result_dir):
     result_files = [os.path.join(result_dir, result_dir, 'run{}.pkl'.format(i)) for i in range(5)]
@@ -20,12 +37,19 @@ files = {'Proposed': 'nsws.hdf5', 'ResNet18': 'nn_resnet18.hdf5',
          'ShallowCNN': 'nn_shallowcnn.hdf5', 'VGG11': 'nn_vgg11.hdf5'}
 for label, filename in files.items():
     datafile = os.path.join(result_dir, filename)
+    print('=========== {} ==========='.format(label))
     if os.path.exists(datafile):
         with h5py.File(datafile, 'r') as f:
-            accs, preds = f['accs'][()], f['preds'][()]
+            accs, preds, y_test = f['accs'][()], f['preds'][()], f['y_test'][()]
             max_index = accs.shape[0]
-        plt.errorbar(log_perclass_samples[:max_index],
-                     np.mean(accs, axis=1), np.std(accs, axis=1), fmt='o-', label=label)
+            best_run_index = np.argmax(np.mean(accs, axis=1))
+            best_preds = preds[best_run_index]
+            acc_mean, acc_std = accs_stats(best_preds, y_test)
+            precision, recall, fscore, kappa = precision_recall_fscore_stats(best_preds, y_test)
+            print('& {:.4f} (\pm {:.4f}) & {:.4f} & {:.4f} & {:.4f} & {:.4f} \\\\'.format(acc_mean, acc_std, precision, recall, fscore, kappa))
+
+            plt.errorbar(log_perclass_samples[:max_index],
+                         np.mean(accs, axis=1), np.std(accs, axis=1), fmt='o-', label=label)
 
 perclass_samples = [2**i for i in log_perclass_samples]
 # stats_shallowcnn = np.array([mean_std_stats('samples-{}-model-MNISTNet'.format(i)) for i in samples])
