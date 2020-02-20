@@ -103,7 +103,7 @@ def rcdt_parallel(X):
 def add_trans_samples(rcdt_features):
     # rcdt_features: (n_samples, proj_len, num_angles)
     # deformation vectors for  translation
-    v1, v2 = np.cos(theta), np.sin(theta)
+    v1, v2 = np.cos(theta*np.pi/180), np.sin(theta*np.pi/180)
     v1 = np.repeat(v1[np.newaxis], rcdt_features.shape[1], axis=0)
     v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
     return np.concatenate([rcdt_features, v1[np.newaxis], v2[np.newaxis]])
