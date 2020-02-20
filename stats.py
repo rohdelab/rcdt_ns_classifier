@@ -18,8 +18,6 @@ def mean_std_stats(result_dir):
 log_perclass_samples = np.arange(15)
 files = {'Proposed': 'nsws.hdf5', 'ResNet18': 'nn_resnet18.hdf5',
          'ShallowCNN': 'nn_shallowcnn.hdf5', 'VGG11': 'nn_vgg11.hdf5'}
-# files = {'ResNet18': 'nn_resnet18.hdf5',
-#          'ShallowCNN': 'nn_shallowcnn.hdf5'}
 for label, filename in files.items():
     datafile = os.path.join(result_dir, filename)
     if os.path.exists(datafile):
