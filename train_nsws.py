@@ -205,7 +205,7 @@ if __name__ == '__main__':
         with h5py.File(cache_file, 'r') as f:
             x_train, y_train = f['x_train'][()], f['y_train'][()]
             x_test, y_test = f['x_test'][()], f['y_test'][()]
-            print('loaded from cache file data: x_traion {} x_test {}'.format(x_train.shape, x_test.shape))
+            print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
     else:
         with h5py.File(cache_file, 'w') as f:
             x_train = rcdt_parallel(x_train)
