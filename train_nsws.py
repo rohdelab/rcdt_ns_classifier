@@ -11,10 +11,19 @@ import multiprocessing as mp
 from pathlib import Path
 
 from sklearn.metrics import accuracy_score
+import numpy as np
 import numpy.linalg as LA
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
 from utils import *
+
+import time
+
+__GPU__ = True
+
+if __GPU__:
+    import cupy as cp
+    
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
@@ -28,6 +37,41 @@ x_range = [0, 1]
 Rdown = 4  # downsample radon projections (w.r.t. angles)
 theta = np.linspace(0, 176, 180 // Rdown)
 radoncdt = RadonCDT(theta)
+
+
+def gs_cofficient(v1, v2):
+    if __GPU__:
+        return cp.dot(v2, v1) / cp.dot(v1, v1)
+    else:
+        return np.dot(v2, v1) / np.dot(v1, v1)
+
+def proj(v1, v2):
+    if __GPU__:
+        return cp.multiply(gs_cofficient(v1, v2), v1)
+    else:
+        return np.multiply(gs_cofficient(v1, v2), v1)
+    
+def gs_orthogonalization(X):
+    for i in range(len(X)):
+        if i==0:
+            Y = X[i]
+            if __GPU__:
+                Y = Y[cp.newaxis]
+            else:
+                Y = Y[np.newaxis]
+            continue
+        else:
+            temp_vec = X[i]
+        for inY in Y :
+            proj_vec = proj(inY, X[i])
+            temp_vec = temp_vec - proj_vec
+        if __GPU__:
+            Y = cp.concatenate((Y,temp_vec[cp.newaxis]),axis=0)
+        else:
+            Y = np.concatenate((Y,temp_vec[np.newaxis]),axis=0)
+    return Y
+
+
 
 def fun_rcdt_single(I):
     # I: (width, height)
@@ -90,12 +134,33 @@ class SubSpaceClassifier:
             class_data = X[y == class_idx]
             class_data_trans = add_trans_samples(class_data)
             flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
-            # print(flat.shape)
+            
             u, s, vh = LA.svd(flat)
-            # print(vh.shape, s.shape, u.shape)
+            basis = vh[:flat.shape[0]][s > 1e-8][:512]
+            
+            if __GPU__:
+                basis = cp.array(basis)
+                # using SVD
+                # u, s, vh = cp.linalg.svd(cp.array(flat),full_matrices=False)
+                # basis = vh[:flat.shape[0]][s > 1e-8][:512]
+                
+                # using Gram-Schmidt Ortho-Normalization
+                # vh = gs_orthogonalization(cp.array(flat))
+                # vh = vh/cp.linalg.norm(vh,axis=1).reshape(vh.shape[0],1)
+                # basis = vh[:flat.shape[0]][:512]
+            # else:
+                # using SVD
+                # u, s, vh = LA.svd(flat)
+                # basis = vh[:flat.shape[0]][s > 1e-8][:512]
+                
+                # using Gram-Schmidt Ortho-Normalization
+                # vh = gs_orthogonalization(flat)
+                # vh = vh/LA.norm(vh,axis=1).reshape(vh.shape[0],1)
+                # basis = vh[:flat.shape[0]][:512]
+
             # Only use the largest 512 eigenvectors
             # Each row of basis is a eigenvector
-            basis = vh[:flat.shape[0]][s > 1e-8][:512]
+            
             self.subspaces.append(basis)
 
     def predict(self, X):
@@ -112,12 +177,23 @@ class SubSpaceClassifier:
         D = []
         for class_idx in range(self.num_classes):
             basis = self.subspaces[class_idx]
-            proj = X @ basis.T  # (n_samples, n_basis)
-            projR = proj @ basis  # (n_samples, n_features)
-            D.append(LA.norm(projR - X, axis=1))
-        D = np.stack(D, axis=0)  # (num_classes, n_samples)
-        preds = np.argmin(D, axis=0)  # n_samples
-        return preds
+            
+            if __GPU__:
+                proj = cp.matmul(X,basis.T)
+                projR = cp.matmul(proj,basis)
+                D.append(cp.linalg.norm(projR - X, axis=1))
+            else:
+                proj = X @ basis.T  # (n_samples, n_basis)
+                projR = proj @ basis  # (n_samples, n_features)
+                D.append(LA.norm(projR - X, axis=1))
+        if __GPU__:
+            D = cp.stack(D, axis=0)  # (num_classes, n_samples)
+            preds = cp.argmin(D, axis=0)  # n_samples
+            return cp.asnumpy(preds)
+        else:
+            D = np.stack(D, axis=0)
+            preds = np.argmin(D, axis=0)
+            return preds
 
 
 if __name__ == '__main__':
@@ -129,7 +205,7 @@ if __name__ == '__main__':
         with h5py.File(cache_file, 'r') as f:
             x_train, y_train = f['x_train'][()], f['y_train'][()]
             x_test, y_test = f['x_test'][()], f['y_test'][()]
-            print('loaded from cache file data: x_traion {} x_test {}'.format(x_train.shape, x_test.shape))
+            print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
     else:
         with h5py.File(cache_file, 'w') as f:
             x_train = rcdt_parallel(x_train)
@@ -143,12 +219,18 @@ if __name__ == '__main__':
     num_repeats = 10
     accs = []
     all_preds = []
+    if __GPU__:
+        x_test = cp.array(x_test)
     for n_samples_perclass in [2 ** i for i in range(0, po_train_max+1)]:
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             classifier = SubSpaceClassifier()
+            tic = time.time()
             classifier.fit(x_train_sub, y_train_sub, num_classes)
+            
             preds = classifier.predict(x_test)
+            toc = time.time()
+            print('Runtime of fit+predict functions: {} seconds'.format(toc-tic))
             accs.append(accuracy_score(y_test, preds))
             all_preds.append(preds)
             print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, accuracy_score(y_test, preds)))
