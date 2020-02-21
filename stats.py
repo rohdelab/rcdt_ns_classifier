@@ -10,6 +10,9 @@ from sklearn.metrics import cohen_kappa_score
 
 result_dir = sys.argv[1]
 
+# fig = plt.Figure(figsize=(6, 3))
+fig, ax = plt.subplots(figsize=(5, 4))
+
 def precision_recall_fscore_stats(multipreds, y_test):
     result = []
     for i in range(multipreds.shape[0]):
@@ -67,15 +70,18 @@ perclass_samples = [2**i for i in log_perclass_samples]
 # # plt.plot(np.log2(samples), stats1[:, 0], 'bo-', label='VGG11')
 # #
 #
-plt.xticks(log_perclass_samples[:max_index], list(map(str, perclass_samples[:max_index])))
+plt.xticks(log_perclass_samples[:max_index], list(map(str, perclass_samples[:max_index])), rotation=45)
 
-plt.xlabel('#samples per-class')
-plt.ylabel('test accuracy')
-plt.ylim([0,1])
-
-plt.title(result_dir)
+plt.xlabel('No. of training samples (per class)')
+plt.ylabel('Test Accuracy')
+plt.ylim([0, 1])
+title = result_dir[result_dir.index('final')+6:]
+if title.endswith('/'):
+    title = title[:-1]
+plt.title(title)
 plt.legend()
 plt.grid(linestyle='-', alpha=0.5)
-# plt.savefig('out.pdf')
+plt.subplots_adjust(bottom=0.2)
+plt.savefig('{}.pdf'.format(title))
 plt.show()
 #
