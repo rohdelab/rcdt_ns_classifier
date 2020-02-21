@@ -134,54 +134,9 @@ def take_train_val_samples(x_train, y_train, n_samples_perclass, num_classes, re
     return (x_train_sub, y_train_sub), (x_val, y_val)
 
 
-"""
-def dataset_info(dataset):
-    assert dataset in ['data699', 'data711', 'data705_s3',
-                       'data705_s3_t10', 'data704', 'data701',
-                       'data700', 'data706','data703',
-                       'data701_rot', 'data707', 'data707_hog',
-                       'data708', 'data709', 'data710', 'data710_full']
-    if dataset in ['data700', 'data704']:
-        img_size = 28
-        num_classes = 10
-    if dataset in ['data701', 'data701_rot']:
-        img_size = 84
-        num_classes = 10
-    if dataset in ['data705_s3_t10', 'data705_s3']:
-        img_size = 151
-        num_classes = 32
-    if dataset == 'data706':
-        img_size = 64
-        num_classes = 6
-    if dataset == 'data703':
-        img_size = 130
-        num_classes = 2
-    if dataset in ['data707', 'data707_hog']:
-        img_size = 128
-        num_classes = 5
-    if dataset == 'data708':
-        img_size = 120
-        num_classes = 2
-    if dataset == 'data709':
-        img_size = 32
-        num_classes = 4
-    if dataset == 'data710':
-        img_size = 128
-        num_classes = 3
-    if dataset == 'data710_full':
-        img_size = 128
-        num_classes = 24
-    if dataset == 'data711':
-        img_size = 64
-        num_classes = 10
-    if dataset == 'data699':
-        img_size = 128
-        num_classes = 1000
-    return img_size, num_classes
-"""
 
 def dataset_config(dataset):
-    assert dataset in ['AffMNIST', 'LiverN', 'MNIST', 'OAM',  'SignMNIST', 'Synthetic']
+    assert dataset in ['AffMNIST', 'LiverN', 'MNIST', 'OAM',  'SignMNIST', 'Synthetic', 'CIFAR10']
     if dataset in ['MNIST']:
         rm_edge = True
         num_classes = 10
@@ -212,5 +167,10 @@ def dataset_config(dataset):
         num_classes = 2
         img_size = 130
         po_train_max = 8   # maximum train samples = 2^po_max
+    elif dataset in ['CIFAR10']:
+        rm_edge = False
+        num_classes = 10
+        img_size = 32
+        po_train_max = 12
 
     return num_classes, img_size, po_train_max, rm_edge
