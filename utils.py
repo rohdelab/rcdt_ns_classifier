@@ -206,7 +206,7 @@ def dataset_config(dataset):
         rm_edge = True
         num_classes = 1000
         img_size = 64
-        po_train_max = 7  # maximum train samples = 2^po_max
+        po_train_max = 4  # maximum train samples = 2^po_max
     elif dataset in ['LiverN']:
         rm_edge=False
         num_classes = 2
