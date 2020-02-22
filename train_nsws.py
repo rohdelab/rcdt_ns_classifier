@@ -39,39 +39,6 @@ theta = np.linspace(0, 176, 180 // Rdown)
 radoncdt = RadonCDT(theta)
 
 
-def gs_cofficient(v1, v2):
-    if __GPU__:
-        return cp.dot(v2, v1) / cp.dot(v1, v1)
-    else:
-        return np.dot(v2, v1) / np.dot(v1, v1)
-
-def proj(v1, v2):
-    if __GPU__:
-        return cp.multiply(gs_cofficient(v1, v2), v1)
-    else:
-        return np.multiply(gs_cofficient(v1, v2), v1)
-    
-def gs_orthogonalization(X):
-    for i in range(len(X)):
-        if i==0:
-            Y = X[i]
-            if __GPU__:
-                Y = Y[cp.newaxis]
-            else:
-                Y = Y[np.newaxis]
-            continue
-        else:
-            temp_vec = X[i]
-        for inY in Y :
-            proj_vec = proj(inY, X[i])
-            temp_vec = temp_vec - proj_vec
-        if __GPU__:
-            Y = cp.concatenate((Y,temp_vec[cp.newaxis]),axis=0)
-        else:
-            Y = np.concatenate((Y,temp_vec[np.newaxis]),axis=0)
-    return Y
-
-
 
 def fun_rcdt_single(I):
     # I: (width, height)
@@ -138,8 +105,8 @@ class SubSpaceClassifier:
             u, s, vh = LA.svd(flat)
             basis = vh[:flat.shape[0]][s > 1e-8][:512]
             
-            if __GPU__:
-                basis = cp.array(basis)
+            #if __GPU__:
+                #basis = cp.array(basis)
                 # using SVD
                 # u, s, vh = cp.linalg.svd(cp.array(flat),full_matrices=False)
                 # basis = vh[:flat.shape[0]][s > 1e-8][:512]
@@ -179,16 +146,19 @@ class SubSpaceClassifier:
             basis = self.subspaces[class_idx]
             
             if __GPU__:
-                proj = cp.matmul(X,basis.T)
-                projR = cp.matmul(proj,basis)
-                D.append(cp.linalg.norm(projR - X, axis=1))
+                D.append(cp.linalg.norm(cp.matmul(cp.matmul(X, cp.array(basis).T), cp.array(basis)) -X, axis=1))
+                #basis = cp.array(basis)
+                #proj = cp.matmul(X,basis.T)
+                #projR = cp.matmul(proj,basis)
+                #D.append(cp.linalg.norm(projR - X, axis=1))
             else:
                 proj = X @ basis.T  # (n_samples, n_basis)
                 projR = proj @ basis  # (n_samples, n_features)
                 D.append(LA.norm(projR - X, axis=1))
         if __GPU__:
-            D = cp.stack(D, axis=0)  # (num_classes, n_samples)
-            preds = cp.argmin(D, axis=0)  # n_samples
+            preds = cp.argmin(cp.stack(D, axis=0), axis=0)
+            #D = cp.stack(D, axis=0)  # (num_classes, n_samples)
+            #preds = cp.argmin(D, axis=0)  # n_samples
             return cp.asnumpy(preds)
         else:
             D = np.stack(D, axis=0)
