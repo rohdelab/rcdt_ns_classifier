@@ -136,7 +136,7 @@ def take_train_val_samples(x_train, y_train, n_samples_perclass, num_classes, re
 
 
 def dataset_config(dataset):
-    assert dataset in ['AffMNIST', 'LiverN', 'MNIST', 'OAM',  'SignMNIST', 'Synthetic', 'CIFAR10']
+    assert dataset in ['AffMNIST', 'LiverN', 'MNIST', 'OAM',  'SignMNIST', 'Synthetic', 'CIFAR10', 'MNIST_outDist']
     if dataset in ['MNIST']:
         rm_edge = True
         num_classes = 10
