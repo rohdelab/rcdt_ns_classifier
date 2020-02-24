@@ -172,5 +172,10 @@ def dataset_config(dataset):
         num_classes = 10
         img_size = 32
         po_train_max = 12
+    elif dataset in ['MNIST_outDist']:
+        rm_edge = True
+        num_classes = 10
+        img_size = 84
+        po_train_max = 12  # maximum train samples = 2^po_max
 
     return num_classes, img_size, po_train_max, rm_edge
