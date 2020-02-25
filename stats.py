@@ -44,6 +44,7 @@ for label, filename in files.items():
     if os.path.exists(datafile):
         with h5py.File(datafile, 'r') as f:
             accs, preds, y_test = f['accs'][()], f['preds'][()], f['y_test'][()]
+            print(accs.squeeze())
             max_index = accs.shape[0]
             best_run_index = np.argmax(np.mean(accs, axis=1))
             best_preds = preds[best_run_index]
