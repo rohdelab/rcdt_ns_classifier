@@ -80,6 +80,7 @@ class SubSpaceClassifier:
     def __init__(self):
         self.num_classes = None
         self.subspaces = []
+        self.len_subspace = 0
 
     def fit(self, X, y, num_classes):
         """Fit linear model.
@@ -103,7 +104,19 @@ class SubSpaceClassifier:
             flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
             
             u, s, vh = LA.svd(flat)
-            basis = vh[:flat.shape[0]][s > 1e-8][:512]
+            
+            cum_s = np.cumsum(s)
+            cum_s = cum_s/np.max(cum_s)
+            
+            max_basis = max(np.where(cum_s<0.99)[0])+2
+            # print('# basis with atleast 99% variance: '+str(max_basis))
+            # print('singular values: ' +str(s))
+            
+            if max_basis > self.len_subspace:
+                self.len_subspace = max_basis
+            
+            basis = vh[:flat.shape[0]]
+            #basis = vh[:flat.shape[0]][s > 1e-8][:256]
             
             #if __GPU__:
                 #basis = cp.array(basis)
@@ -144,6 +157,7 @@ class SubSpaceClassifier:
         D = []
         for class_idx in range(self.num_classes):
             basis = self.subspaces[class_idx]
+            basis = basis[:self.len_subspace,:]
             
             if __GPU__:
                 D.append(cp.linalg.norm(cp.matmul(cp.matmul(X, cp.array(basis).T), cp.array(basis)) -X, axis=1))
