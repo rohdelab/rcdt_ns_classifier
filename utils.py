@@ -48,7 +48,7 @@ def load_data(dataset, num_classes, datadir='data'):
         with h5py.File(cache_file, 'r') as f:
             x_train, y_train = f['x_train'][()], f['y_train'][()]
             x_test, y_test = f['x_test'][()], f['y_test'][()]
-            print('loaded from cache file data: x_traion {} x_test {}'.format(x_train.shape, x_test.shape))
+            print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
             return (x_train, y_train), (x_test, y_test)
 
     print('loading data from mat files')
@@ -156,7 +156,7 @@ def dataset_config(dataset):
         rm_edge = False
         num_classes = 3
         img_size = 128
-        po_train_max = 10  # maximum train samples = 2^po_max
+        po_train_max = 9  # maximum train samples = 2^po_max
     elif dataset in ['Synthetic']:
         rm_edge = True
         num_classes = 1000
