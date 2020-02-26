@@ -105,7 +105,8 @@ def rcdt_parallel(X):
 def add_trans_samples(rcdt_features):
     # rcdt_features: (n_samples, proj_len, num_angles)
     # deformation vectors for  translation
-    v1, v2 = np.cos(theta*np.pi/180), np.sin(theta*np.pi/180)
+    assert rcdt_features.dtype == np.float64
+    v1, v2 = np.cos(theta*np.pi/180), np.sin(theta*np.pi/180).astype(np.float64)
     v1 = np.repeat(v1[np.newaxis], rcdt_features.shape[1], axis=0)
     v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
     return np.concatenate([rcdt_features, v1[np.newaxis], v2[np.newaxis]])
@@ -129,6 +130,7 @@ class SubSpaceClassifier:
         self :
             Returns an instance of self.
         """
+        assert X.dtype == np.float64
         self.num_classes = num_classes
         for class_idx in range(num_classes):
             # generate the bases vectors
@@ -139,6 +141,7 @@ class SubSpaceClassifier:
             
             u, s, vh = LA.svd(flat)
             basis = vh[:flat.shape[0]][s > 1e-8][:512]
+            assert basis.dtype == np.float64
             
             if __GPU__:
                 basis = cp.array(basis)
@@ -204,11 +207,16 @@ if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = load_data(args.dataset, num_classes, datadir)
     
     for n_samples in [1, 10, 100]:
-        high.start_counters([events.PAPI_FP_OPS,])
+        high.start_counters([events.PAPI_DP_OPS,])
         rcdt_test = x_train[:n_samples]
         rcdt_test = fun_rcdt_batch(rcdt_test)
         x=high.stop_counters()[0]
         print('rcdt_test.shape {} GFLOPS {}'.format(rcdt_test.shape, x/1e9))
+
+    high.start_counters([events.PAPI_DP_OPS,])
+    rcdt_test = rcdt_parallel(rcdt_test)
+    x=high.stop_counters()[0]
+    print('rcdt_test.shape {} GFLOPS {} (parallel)'.format(rcdt_test.shape, x/1e9))
 
     cache_file = os.path.join(datadir, args.dataset, 'rcdt.hdf5')
     if os.path.exists(cache_file):
@@ -238,13 +246,12 @@ if __name__ == '__main__':
             classifier = SubSpaceClassifier()
             tic = time.time()
 
-            high.start_counters([events.PAPI_FP_OPS,])
-            classifier.fit(x_train_sub, y_train_sub, num_classes)
+            high.start_counters([events.PAPI_DP_OPS,])
+            classifier.fit(x_train_sub.astype(np.float64), y_train_sub, num_classes)
             train_gflops = high.stop_counters()[0] / 1e9
             
-            high.start_counters([events.PAPI_FP_OPS,])
-            classifier.fit(x_train_sub, y_train_sub, num_classes)
-            preds = classifier.predict(x_test)
+            high.start_counters([events.PAPI_DP_OPS,])
+            preds = classifier.predict(x_test.astype(np.float64))
             test_gflops =high.stop_counters()[0] / 1e9
 
             toc = time.time()
