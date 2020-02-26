@@ -9,14 +9,19 @@ import matplotlib.pyplot as plt
 from thop import profile
 from model import MNISTNet
 import numpy as np
+from pypapi import events, papi_high as high
 
 # https://github.com/Lyken17/pytorch-OpCounter
 # https://github.com/sovrasov/flops-counter.pytorch/issues/16
 
-def test_gflops(model, epochs=1, num_train_samples=1, input_size=28):
+def train_gflops(model, epochs=1, num_train_samples=1, input_size=28):
     gflops = epochs * num_train_samples * 2 * test_gflops(model, 1, input_size)
     return gflops
 
+himodel = MNISTNet(3, 10, img_size=28).double()
+high.start_counters([events.PAPI_DP_OPS,])
+himodel(torch.randn(1, 3, 28, 28).double())
+print(high.stop_counters()[0]/1e9)
 
 def test_gflops(model, input_size):
     assert model in ['shallowcnn', 'resnet18', 'vgg11']
@@ -28,7 +33,8 @@ def test_gflops(model, input_size):
         model = models.vgg11_bn(num_classes=10)
     input = torch.randn(1, 3, input_size, input_size)
     macs, params = profile(model, inputs=(input, ))
-    gflops = macs/2e9
+    gflops = 2*macs/1e9
+    print(gflops)
     return gflops
 
 costs = []
