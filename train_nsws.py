@@ -3,7 +3,7 @@
 """
 Created on Thu Feb 13 10:58:26 2020
 
-@author: Hasnet, Xuwang Yin
+@author: Hasnat, Xuwang Yin
 """
 
 import argparse
