@@ -41,40 +41,6 @@ theta = np.linspace(0, 176, 180 // Rdown)
 radoncdt = RadonCDT(theta)
 
 
-def gs_cofficient(v1, v2):
-    if __GPU__:
-        return cp.dot(v2, v1) / cp.dot(v1, v1)
-    else:
-        return np.dot(v2, v1) / np.dot(v1, v1)
-
-def proj(v1, v2):
-    if __GPU__:
-        return cp.multiply(gs_cofficient(v1, v2), v1)
-    else:
-        return np.multiply(gs_cofficient(v1, v2), v1)
-    
-def gs_orthogonalization(X):
-    for i in range(len(X)):
-        if i==0:
-            Y = X[i]
-            if __GPU__:
-                Y = Y[cp.newaxis]
-            else:
-                Y = Y[np.newaxis]
-            continue
-        else:
-            temp_vec = X[i]
-        for inY in Y :
-            proj_vec = proj(inY, X[i])
-            temp_vec = temp_vec - proj_vec
-        if __GPU__:
-            Y = cp.concatenate((Y,temp_vec[cp.newaxis]),axis=0)
-        else:
-            Y = np.concatenate((Y,temp_vec[np.newaxis]),axis=0)
-    return Y
-
-
-
 def fun_rcdt_single(I):
     # I: (width, height)
     template = np.ones(I.shape, dtype=I.dtype)
@@ -106,7 +72,7 @@ def add_trans_samples(rcdt_features):
     # rcdt_features: (n_samples, proj_len, num_angles)
     # deformation vectors for  translation
     assert rcdt_features.dtype == np.float64
-    v1, v2 = np.cos(theta*np.pi/180), np.sin(theta*np.pi/180).astype(np.float64)
+    v1, v2 = np.cos(theta*np.pi/180).astype(np.float64), np.sin(theta*np.pi/180).astype(np.float64)
     v1 = np.repeat(v1[np.newaxis], rcdt_features.shape[1], axis=0)
     v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
     return np.concatenate([rcdt_features, v1[np.newaxis], v2[np.newaxis]])
@@ -137,15 +103,16 @@ class SubSpaceClassifier:
             # generate the bases vectors
             # TODO check class_data is normalized (column mean = 0)
             class_data = X[y == class_idx]
-            # class_data_trans = add_trans_samples(class_data)
-            # flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
+            #class_data_trans = add_trans_samples(class_data)
+            #flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
             flat = class_data.reshape(class_data.shape[0], -1)
             
             u, s, vh = LA.svd(flat)
             cum_s = np.cumsum(s)
             cum_s = cum_s/np.max(cum_s)
 
-            max_basis = max(np.where(cum_s<0.99)[0])+2
+            #max_basis = max(np.where(cum_s<0.99)[0])+2
+            max_basis = (np.where(cum_s>=0.99)[0])[0] + 1
             # print('# basis with atleast 99% variance: '+str(max_basis))
             # print('singular values: ' +str(s))
 
@@ -155,16 +122,16 @@ class SubSpaceClassifier:
             basis = vh[:flat.shape[0]]
             assert basis.dtype == np.float64
             
-            if __GPU__:
-                basis = cp.array(basis)
-                # using SVD
-                # u, s, vh = cp.linalg.svd(cp.array(flat),full_matrices=False)
-                # basis = vh[:flat.shape[0]][s > 1e-8][:512]
+            #if __GPU__:
+                #basis = cp.array(basis)
+                #using SVD
+                #u, s, vh = cp.linalg.svd(cp.array(flat),full_matrices=False)
+                #basis = vh[:flat.shape[0]][s > 1e-8][:512]
                 
-                # using Gram-Schmidt Ortho-Normalization
-                # vh = gs_orthogonalization(cp.array(flat))
-                # vh = vh/cp.linalg.norm(vh,axis=1).reshape(vh.shape[0],1)
-                # basis = vh[:flat.shape[0]][:512]
+                #using Gram-Schmidt Ortho-Normalization
+                #vh = gs_orthogonalization(cp.array(flat))
+                #vh = vh/cp.linalg.norm(vh,axis=1).reshape(vh.shape[0],1)
+                #basis = vh[:flat.shape[0]][:512]
             # else:
                 # using SVD
                 # u, s, vh = LA.svd(flat)
@@ -197,16 +164,19 @@ class SubSpaceClassifier:
             basis = basis[:self.len_subspace,:]
             
             if __GPU__:
-                proj = cp.matmul(X,basis.T)
-                projR = cp.matmul(proj,basis)
-                D.append(cp.linalg.norm(projR - X, axis=1))
+                D.append(cp.linalg.norm(cp.matmul(cp.matmul(X, cp.array(basis).T), cp.array(basis)) -X, axis=1))
+                #basis = cp.array(basis)
+                #proj = cp.matmul(X,basis.T)
+                #projR = cp.matmul(proj,basis)
+                #D.append(cp.linalg.norm(projR - X, axis=1))
             else:
                 proj = X @ basis.T  # (n_samples, n_basis)
                 projR = proj @ basis  # (n_samples, n_features)
                 D.append(LA.norm(projR - X, axis=1))
         if __GPU__:
-            D = cp.stack(D, axis=0)  # (num_classes, n_samples)
-            preds = cp.argmin(D, axis=0)  # n_samples
+            preds = cp.argmin(cp.stack(D, axis=0), axis=0)
+            #D = cp.stack(D, axis=0)  # (num_classes, n_samples)
+            #preds = cp.argmin(D, axis=0)  # n_samples
             return cp.asnumpy(preds)
         else:
             D = np.stack(D, axis=0)
