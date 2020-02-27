@@ -181,7 +181,7 @@ if __name__ == '__main__':
     preds = np.stack(all_preds, axis=0)
     preds = preds.reshape([preds.shape[0] // num_repeats, num_repeats, preds.shape[1]])
 
-    results_dir = 'results/final/{}/'.format(args.dataset)
+    results_dir = 'results/final_gflops/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
     result_file = os.path.join(results_dir, 'nn_{}.hdf5'.format(args.model))
     with h5py.File(result_file, 'w') as f:

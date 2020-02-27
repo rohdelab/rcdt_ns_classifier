@@ -116,6 +116,7 @@ class SubSpaceClassifier:
     def __init__(self):
         self.num_classes = None
         self.subspaces = []
+        self.len_subspace = 0
 
     def fit(self, X, y, num_classes):
         """Fit linear model.
@@ -136,11 +137,22 @@ class SubSpaceClassifier:
             # generate the bases vectors
             # TODO check class_data is normalized (column mean = 0)
             class_data = X[y == class_idx]
-            class_data_trans = add_trans_samples(class_data)
-            flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
+            # class_data_trans = add_trans_samples(class_data)
+            # flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
+            flat = class_data.reshape(class_data.shape[0], -1)
             
             u, s, vh = LA.svd(flat)
-            basis = vh[:flat.shape[0]][s > 1e-8][:512]
+            cum_s = np.cumsum(s)
+            cum_s = cum_s/np.max(cum_s)
+
+            max_basis = max(np.where(cum_s<0.99)[0])+2
+            # print('# basis with atleast 99% variance: '+str(max_basis))
+            # print('singular values: ' +str(s))
+
+            if max_basis > self.len_subspace:
+                self.len_subspace = max_basis
+
+            basis = vh[:flat.shape[0]]
             assert basis.dtype == np.float64
             
             if __GPU__:
@@ -182,6 +194,7 @@ class SubSpaceClassifier:
         D = []
         for class_idx in range(self.num_classes):
             basis = self.subspaces[class_idx]
+            basis = basis[:self.len_subspace,:]
             
             if __GPU__:
                 proj = cp.matmul(X,basis.T)
@@ -269,7 +282,7 @@ if __name__ == '__main__':
     preds = np.stack(all_preds, axis=0)
     preds = preds.reshape([preds.shape[0] // num_repeats, num_repeats, preds.shape[1]])
 
-    results_dir = 'results/final/{}/'.format(args.dataset)
+    results_dir = 'results/final_gflops/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
     result_file = os.path.join(results_dir, 'nsws.hdf5')
     with h5py.File(result_file, 'w') as f:
