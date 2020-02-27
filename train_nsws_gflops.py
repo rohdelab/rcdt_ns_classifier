@@ -136,8 +136,9 @@ class SubSpaceClassifier:
             # generate the bases vectors
             # TODO check class_data is normalized (column mean = 0)
             class_data = X[y == class_idx]
-            class_data_trans = add_trans_samples(class_data)
-            flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
+            # class_data_trans = add_trans_samples(class_data)
+            # flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
+            flat = class_data.reshape(class_data.shape[0], -1)
             
             u, s, vh = LA.svd(flat)
             basis = vh[:flat.shape[0]][s > 1e-8][:512]
