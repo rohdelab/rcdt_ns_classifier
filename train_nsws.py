@@ -102,8 +102,8 @@ class SubSpaceClassifier:
             class_data = X[y == class_idx]
             #class_data_trans = add_trans_samples(class_data)
             #flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
-            #flat = class_data.reshape(class_data.shape[0], -1)
-            flat = np.transpose(class_data,(0,2,1)).reshape(class_data.shape[0],-1)
+            flat = class_data.reshape(class_data.shape[0], -1)
+            #flat = np.transpose(class_data,(0,2,1)).reshape(class_data.shape[0],-1)
             
             u, s, vh = LA.svd(flat)
             
@@ -156,8 +156,8 @@ class SubSpaceClassifier:
         ndarray of shape (n_samples,)
            Predicted target values per element in X.
         """
-        #X = X.reshape([X.shape[0], -1])
-        X = np.transpose(X,(0,2,1)).reshape(X.shape[0],-1)
+        X = X.reshape([X.shape[0], -1])
+        #X = np.transpose(X,(0,2,1)).reshape(X.shape[0],-1)
         D = []
         for class_idx in range(self.num_classes):
             basis = self.subspaces[class_idx]
