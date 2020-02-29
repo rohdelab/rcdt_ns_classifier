@@ -15,20 +15,24 @@ import numpy as np
 import numpy.linalg as LA
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
+from sklearn.neural_network import MLPClassifier
 from utils import *
 
 import time
 
-__GPU__ = True
-
-if __GPU__:
-    import cupy as cp
-    
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
-parser.add_argument('--with_deform_model', action='store_true')
+parser.add_argument('--no_deform_model', action='store_true')
+parser.add_argument('--classifier', default='subspace', choices=['mlp', 'subspace'])
+parser.add_argument('--use_gpu', action='store_true')
 args = parser.parse_args()
+
+if args.classifier == 'mlp':
+    assert not args.use_gpu
+
+if args.use_gpu:
+    import cupy as cp
 
 num_classes, img_size, po_train_max, rm_edge = dataset_config(args.dataset)
 
@@ -101,11 +105,11 @@ class SubSpaceClassifier:
             # generate the bases vectors
             # TODO check class_data is normalized (column mean = 0)
             class_data = X[y == class_idx]
-            if args.with_deform_model:
+            if args.no_deform_model:
+                flat = class_data.reshape(class_data.shape[0], -1)
+            else:
                 class_data_trans = add_trans_samples(class_data)
                 flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
-            else:
-                flat = class_data.reshape(class_data.shape[0], -1)
             
             u, s, vh = LA.svd(flat)
             
@@ -165,7 +169,7 @@ class SubSpaceClassifier:
             basis = self.subspaces[class_idx]
             basis = basis[:self.len_subspace,:]
             
-            if __GPU__:
+            if args.use_gpu:
                 D.append(cp.linalg.norm(cp.matmul(cp.matmul(X, cp.array(basis).T), cp.array(basis)) -X, axis=1))
                 #basis = cp.array(basis)
                 #proj = cp.matmul(X,basis.T)
@@ -175,7 +179,7 @@ class SubSpaceClassifier:
                 proj = X @ basis.T  # (n_samples, n_basis)
                 projR = proj @ basis  # (n_samples, n_features)
                 D.append(LA.norm(projR - X, axis=1))
-        if __GPU__:
+        if args.use_gpu:
             preds = cp.argmin(cp.stack(D, axis=0), axis=0)
             #D = cp.stack(D, axis=0)  # (num_classes, n_samples)
             #preds = cp.argmin(D, axis=0)  # n_samples
@@ -209,18 +213,25 @@ if __name__ == '__main__':
     num_repeats = 10
     accs = []
     all_preds = []
-    if __GPU__:
+    if args.use_gpu:
         x_test = cp.array(x_test)
     for n_samples_perclass in [2 ** i for i in range(0, po_train_max+1)]:
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
-            classifier = SubSpaceClassifier()
-            tic = time.time()
-            classifier.fit(x_train_sub, y_train_sub, num_classes)
-            
-            preds = classifier.predict(x_test)
+            if args.classifier == 'subspace':
+                classifier = SubSpaceClassifier()
+                tic = time.time()
+                classifier.fit(x_train_sub, y_train_sub, num_classes)
+                preds = classifier.predict(x_test)
+            else:
+                classifier = MLPClassifier(max_iter=1000)
+                tic = time.time()
+                x_train_sub_flat = x_train_sub.reshape(x_train_sub.shape[0], -1)
+                x_test_flat = x_test.reshape(x_test.shape[0], -1)
+                classifier.fit(x_train_sub_flat, y_train_sub)
+                preds = classifier.predict(x_test_flat)
             toc = time.time()
-            print('Runtime of fit+predict functions: {} seconds'.format(toc-tic))
+            # print('Runtime of fit+predict functions: {} seconds'.format(toc-tic))
             accs.append(accuracy_score(y_test, preds))
             all_preds.append(preds)
             print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, accuracy_score(y_test, preds)))
@@ -231,7 +242,7 @@ if __name__ == '__main__':
 
     results_dir = 'results/final/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
-    result_file = os.path.join(results_dir, 'nsws.hdf5')
+    result_file = os.path.join(results_dir, 'nsws_{}.hdf5'.format(args.classifier))
     with h5py.File(result_file, 'w') as f:
         f.create_dataset('accs', data=accs)
         f.create_dataset('preds', data=preds)
