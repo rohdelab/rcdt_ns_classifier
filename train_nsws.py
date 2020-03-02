@@ -23,6 +23,7 @@ import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
+parser.add_argument('--use_image_feature', action='store_true')
 parser.add_argument('--no_deform_model', action='store_true')
 parser.add_argument('--classifier', default='subspace', choices=['mlp', 'subspace'])
 parser.add_argument('--use_gpu', action='store_true')
@@ -105,7 +106,7 @@ class SubSpaceClassifier:
             # generate the bases vectors
             # TODO check class_data is normalized (column mean = 0)
             class_data = X[y == class_idx]
-            if args.no_deform_model:
+            if args.no_deform_model or args.use_image_feature:
                 flat = class_data.reshape(class_data.shape[0], -1)
             else:
                 class_data_trans = add_trans_samples(class_data)
@@ -194,21 +195,22 @@ if __name__ == '__main__':
     datadir = './data'
     # x_train: (n_samples, width, height)
     (x_train, y_train), (x_test, y_test) = load_data(args.dataset, num_classes, datadir)
-    cache_file = os.path.join(datadir, args.dataset, 'rcdt.hdf5')
-    if os.path.exists(cache_file):
-        with h5py.File(cache_file, 'r') as f:
-            x_train, y_train = f['x_train'][()], f['y_train'][()]
-            x_test, y_test = f['x_test'][()], f['y_test'][()]
-            print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
-    else:
-        with h5py.File(cache_file, 'w') as f:
-            x_train = rcdt_parallel(x_train)
-            x_test = rcdt_parallel(x_test)
-            f.create_dataset('x_train', data=x_train)
-            f.create_dataset('y_train', data=y_train)
-            f.create_dataset('x_test', data=x_test)
-            f.create_dataset('y_test', data=y_test)
-            print('saved to {}'.format(cache_file))
+    if not args.use_image_feature:
+        cache_file = os.path.join(datadir, args.dataset, 'rcdt.hdf5')
+        if os.path.exists(cache_file):
+            with h5py.File(cache_file, 'r') as f:
+                x_train, y_train = f['x_train'][()], f['y_train'][()]
+                x_test, y_test = f['x_test'][()], f['y_test'][()]
+                print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
+        else:
+            with h5py.File(cache_file, 'w') as f:
+                x_train = rcdt_parallel(x_train)
+                x_test = rcdt_parallel(x_test)
+                f.create_dataset('x_train', data=x_train)
+                f.create_dataset('y_train', data=y_train)
+                f.create_dataset('x_test', data=x_test)
+                f.create_dataset('y_test', data=y_test)
+                print('saved to {}'.format(cache_file))
 
     num_repeats = 10
     accs = []
@@ -242,10 +244,13 @@ if __name__ == '__main__':
 
     results_dir = 'results/final/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
-    if args.classifier == 'mlp':
-        result_file = os.path.join(results_dir, 'nsws_{}.hdf5'.format(args.classifier))
+    if args.use_image_feature:
+        result_file = os.path.join(results_dir, 'nsws_image.hdf5')
     else:
-        result_file = os.path.join(results_dir, 'nsws.hdf5')
+        if args.classifier == 'mlp':
+            result_file = os.path.join(results_dir, 'nsws_{}.hdf5'.format(args.classifier))
+        else:
+            result_file = os.path.join(results_dir, 'nsws.hdf5')
     with h5py.File(result_file, 'w') as f:
         f.create_dataset('accs', data=accs)
         f.create_dataset('preds', data=preds)
