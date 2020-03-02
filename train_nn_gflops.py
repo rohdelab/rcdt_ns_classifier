@@ -26,9 +26,9 @@ from pypapi import events, papi_high as high
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--batch_size', default=64, type=int)
+parser.add_argument('--batch_size', default=32, type=int)
 parser.add_argument('--dataset', type=str, required=True)
-parser.add_argument('--epochs', default=50, type=int)
+parser.add_argument('--epochs', default=1, type=int)
 parser.add_argument('--model', default='shallowcnn', type=str, choices=['vgg11', 'shallowcnn', 'resnet18'])
 parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
@@ -64,8 +64,8 @@ if __name__ == '__main__':
     all_preds = []
     all_train_gflops, all_test_gflops = [], []
     num_repeats = 1
-    # for n_samples_perclass in [2**i for i in range(0, po_train_max+1)]:
-    for n_samples_perclass in [1]:
+    for n_samples_perclass in [2**i for i in range(0, po_train_max+1)]:
+    # for n_samples_perclass in [32]:
         for repeat in range(num_repeats):
             model.load_state_dict(torch.load('./model_init.pth'))
             (x_train_sub, y_train_sub), (x_val, y_val) = take_train_val_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
@@ -83,8 +83,10 @@ if __name__ == '__main__':
             high.start_counters([events.PAPI_DP_OPS,])
             for epoch in range(args.epochs):
                 perm = np.random.permutation(x_train_sub.shape[0])
-                x_train_sub_perm = x_train_sub[perm]
-                y_train_sub_perm = y_train_sub[perm]
+                # x_train_sub_perm = x_train_sub[perm]
+                # y_train_sub_perm = y_train_sub[perm]
+                x_train_sub_perm = x_train_sub
+                y_train_sub_perm = y_train_sub
 
                 if args.plot:
                     fig, axes = plt.subplots(ncols=num_classes, nrows=1)
@@ -145,34 +147,35 @@ if __name__ == '__main__':
             all_train_gflops.append(train_gflops)
 
             # test
-            model.eval()
-            with torch.no_grad():
-                state = torch.load(ckpt_path)
-                model.load_state_dict(state['model'])
-                print('recovered from {}'.format(ckpt_path))
-                print('samples {} repeat {} best val acc {}, epoch {}'.format(n_samples_perclass, repeat, state['best_val_acc'],
-                                                                           state['epoch']), end=' ')
-                high.start_counters([events.PAPI_DP_OPS,])
-                logit = []
-                for i in range(0, x_test.shape[0], 100):
-                  x_test_batch = torch.from_numpy(x_test[i:i+100]).to(device).double()
-                  test_logit = model(x_test_batch)
-                  logit.append(test_logit.cpu().numpy())
-                logit = np.concatenate(logit)
-                y_pred = np.argmax(logit, axis=1)
-                test_acc = (y_pred == y_test).mean()
-                test_gflops =high.stop_counters()[0] / 1e9
-                all_test_gflops.append(test_gflops)
-                del state['model']
-                state['test_acc'] = test_acc
-                state['confusion_matrix'] = confusion_matrix(y_test, y_pred)
-                print('test acc {:.5f} train GFLOPS {:.5f} test GFLOP {:.5f}'.format(test_acc, train_gflops, test_gflops))
-                print(state['confusion_matrix'])
-                with open(ckpt_path, 'wb') as f:
-                    pickle.dump(state, f)
-                print('saved to {}'.format(ckpt_path))
-                accs.append(accuracy_score(y_test, y_pred))
-                all_preds.append(y_pred)
+            if n_samples_perclass == 1:
+                model.eval()
+                with torch.no_grad():
+                    state = torch.load(ckpt_path)
+                    model.load_state_dict(state['model'])
+                    print('recovered from {}'.format(ckpt_path))
+                    print('samples {} repeat {} best val acc {}, epoch {}'.format(n_samples_perclass, repeat, state['best_val_acc'],
+                                                                               state['epoch']), end=' ')
+                    high.start_counters([events.PAPI_DP_OPS,])
+                    logit = []
+                    for i in range(0, x_test.shape[0], 100):
+                      x_test_batch = torch.from_numpy(x_test[i:i+100]).to(device).double()
+                      test_logit = model(x_test_batch)
+                      logit.append(test_logit.cpu().numpy())
+                    logit = np.concatenate(logit)
+                    y_pred = np.argmax(logit, axis=1)
+                    test_acc = (y_pred == y_test).mean()
+                    test_gflops =high.stop_counters()[0] / 1e9
+                    all_test_gflops.append(test_gflops)
+                    del state['model']
+                    state['test_acc'] = test_acc
+                    state['confusion_matrix'] = confusion_matrix(y_test, y_pred)
+                    print('test acc {:.5f} train GFLOPS {:.5f} test GFLOP {:.5f}'.format(test_acc, train_gflops, test_gflops))
+                    print(state['confusion_matrix'])
+                    with open(ckpt_path, 'wb') as f:
+                        pickle.dump(state, f)
+                    print('saved to {}'.format(ckpt_path))
+                    accs.append(accuracy_score(y_test, y_pred))
+                    all_preds.append(y_pred)
               
 
     accs = np.array(accs).reshape(-1, num_repeats)

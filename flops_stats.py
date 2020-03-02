@@ -11,7 +11,6 @@ from sklearn.metrics import cohen_kappa_score
 result_dir = sys.argv[1]
 log_perclass_samples = np.arange(15)
 perclass_samples = np.power(2, log_perclass_samples)
-print(perclass_samples)
 num_classes = 10
 
 # fig = plt.Figure(figsize=(6, 3))
@@ -20,13 +19,16 @@ ax0.set_title('Train GFLOPS')
 ax1.set_title('Average Test GFLOPS')
 
 # files = {'Proposed': 'nsws.hdf5', 'ResNet18': 'nn_resnet18.hdf5', 'ShallowCNN': 'nn_shallowcnn.hdf5', 'VGG11': 'nn_vgg11.hdf5'}
-files = {'Proposed': 'nsws.hdf5', 'ShallowCNN': 'nn_shallowcnn.hdf5'}
+files = {'Proposed': 'nsws.hdf5', 'ShallowCNN': 'nn_shallowcnn.hdf5', 'ResNet18': 'nn_resnet18.hdf5'}
 for label, filename in files.items():
     datafile = os.path.join(result_dir, filename)
     print('=========== {} ==========='.format(label))
     if os.path.exists(datafile):
         with h5py.File(datafile, 'r') as f:
+            print(f.keys())
             train_gflops, test_gflops = f['train_gflops'][()], f['test_gflops'][()]
+            print(train_gflops)
+            print(test_gflops)
             # best_run_index = np.argmax(np.mean(accs, axis=1))
             # best_preds = preds[best_run_index]
             # acc_mean, acc_std = accs_stats(best_preds, y_test)
@@ -42,7 +44,7 @@ for label, filename in files.items():
                 test_gflops = np.ones(max_index) * 0.005 + np.mean(test_gflops, axis=1)/10000
                 ax0.plot(log_perclass_samples[:max_index], train_gflops, color='tab:red', linestyle='solid', marker='o', label=label)
                 ax1.plot(log_perclass_samples[:max_index], test_gflops, color='tab:red', linestyle='solid', marker='o', label=label)
-            if label == 'ShallowCNN':
+            else:
                 train_gflops = np.mean(train_gflops, axis=1)
                 test_gflops = np.mean(test_gflops, axis=1) / 10000
                 ax0.plot(log_perclass_samples[:max_index], train_gflops, color='tab:blue', linestyle='solid', marker='o', label=label)
