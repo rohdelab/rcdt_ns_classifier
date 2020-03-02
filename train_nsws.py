@@ -247,7 +247,10 @@ if __name__ == '__main__':
     if args.use_image_feature:
         result_file = os.path.join(results_dir, 'nsws_image.hdf5')
     else:
-        result_file = os.path.join(results_dir, 'nsws_{}.hdf5'.format(args.classifier))
+        if args.classifier == 'mlp':
+            result_file = os.path.join(results_dir, 'nsws_{}.hdf5'.format(args.classifier))
+        else:
+            result_file = os.path.join(results_dir, 'nsws.hdf5')
     with h5py.File(result_file, 'w') as f:
         f.create_dataset('accs', data=accs)
         f.create_dataset('preds', data=preds)

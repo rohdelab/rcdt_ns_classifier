@@ -136,7 +136,7 @@ def take_train_val_samples(x_train, y_train, n_samples_perclass, num_classes, re
 
 
 def dataset_config(dataset):
-    assert dataset in ['AffMNIST', 'LiverN', 'MNIST', 'OAM', 'OAM_t5', 'OAM_t10', 'SignMNIST', 'Synthetic', 'CIFAR10', 'MNIST_outDist']
+    assert dataset in ['HEP2', 'AffMNIST', 'LiverN', 'MNIST', 'OAM', 'OAM_t5', 'OAM_t10', 'SignMNIST', 'Synthetic', 'CIFAR10', 'MNIST_outDist']
     if dataset in ['MNIST']:
         rm_edge = True
         num_classes = 10
@@ -177,5 +177,10 @@ def dataset_config(dataset):
         num_classes = 10
         img_size = 84
         po_train_max = 12  # maximum train samples = 2^po_max
+    elif dataset in ['HEP2']:
+        rm_edge = False
+        num_classes = 2
+        img_size = 64
+        po_train_max = 10
 
     return num_classes, img_size, po_train_max, rm_edge
