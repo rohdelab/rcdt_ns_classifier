@@ -16,7 +16,14 @@ import numpy.linalg as LA
 
 from pytranskit.optrans.continuous.radoncdt import RadonCDT
 from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC
 from utils import *
+
+import torch
+import skorch
+from torch import nn
+from skorch import NeuralNetClassifier
+
 
 import time
 
@@ -201,11 +208,13 @@ if __name__ == '__main__':
             with h5py.File(cache_file, 'r') as f:
                 x_train, y_train = f['x_train'][()], f['y_train'][()]
                 x_test, y_test = f['x_test'][()], f['y_test'][()]
+                x_train, x_test = x_train.astype(np.float32), x_test.astype(np.float32)
                 print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
         else:
             with h5py.File(cache_file, 'w') as f:
                 x_train = rcdt_parallel(x_train)
                 x_test = rcdt_parallel(x_test)
+                x_train, x_test = x_train.astype(np.float32), x_test.astype(np.float32)
                 f.create_dataset('x_train', data=x_train)
                 f.create_dataset('y_train', data=y_train)
                 f.create_dataset('x_test', data=x_test)
@@ -226,10 +235,23 @@ if __name__ == '__main__':
                 classifier.fit(x_train_sub, y_train_sub, num_classes)
                 preds = classifier.predict(x_test)
             else:
-                classifier = MLPClassifier(max_iter=1000)
                 tic = time.time()
                 x_train_sub_flat = x_train_sub.reshape(x_train_sub.shape[0], -1)
                 x_test_flat = x_test.reshape(x_test.shape[0], -1)
+
+                # classifier = MLPClassifier(hidden_layer_sizes=(500,), max_iter=5000, learning_rate_init=5e-4)
+                # classifier = SVC(gamma='scale')
+                # train_split= skorch.dataset.CVSplit(10) if n_samples_perclass >= 16 else None
+                module = nn.Sequential(nn.Linear(x_train_sub_flat.shape[1], 500), nn.ReLU(), nn.Linear(500, num_classes), nn.Softmax(dim=1))
+                classifier = NeuralNetClassifier(
+                    module,
+                    max_epochs=500,
+                    lr=5e-4,
+                    optimizer=torch.optim.Adam,
+                    iterator_train__shuffle=True,
+                    train_split=None,
+                    device='cuda'
+                )
                 classifier.fit(x_train_sub_flat, y_train_sub)
                 preds = classifier.predict(x_test_flat)
             toc = time.time()
