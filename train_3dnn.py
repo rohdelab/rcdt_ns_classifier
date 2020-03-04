@@ -80,7 +80,7 @@ class Net3D(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
-        x = torch.squeeze(x)
+        x = torch.flatten(x, start_dim=1)
         x = self.classifier(x)
         return x
 
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     x_test = x_test[:, np.newaxis, ...]
     print('loaded data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
 
-    for n_samples_perclass in [1, 2, 4, 8, 16, 32]:
+    for n_samples_perclass in [8, 16, 32]:
         x_train_partial = np.concatenate([x_train[y_train==0][:n_samples_perclass], x_train[y_train==1][:n_samples_perclass]])
         y_train_partial = np.concatenate([y_train[y_train==0][:n_samples_perclass], y_train[y_train==1][:n_samples_perclass]])
 
@@ -103,20 +103,21 @@ if __name__ == '__main__':
         model = Net3D(1, num_classes=2)
 
         train_split = None
-        if n_samples_perclass >= 16:
-            train_split = skorch.dataset.CVSplit(10)
+        # if n_samples_perclass >= 16:
+        #     train_split = skorch.dataset.CVSplit(10, stratified=True)
         classifier = NeuralNetClassifier(
             model,
             max_epochs=20,
             lr=5e-4,
             optimizer=torch.optim.SGD,
+            optimizer__momentum=0.9,
             iterator_train__shuffle=True,
             device='cuda',
             train_split=train_split,
             batch_size=5
         )
 
-        classifier.fit(x_train, y_train)
+        classifier.fit(x_train_partial, y_train_partial)
         preds = classifier.predict(x_test)
         acc = accuracy_score(y_test, preds)
         print('samples per class {} test acc {}'.format(n_samples_perclass, acc))
