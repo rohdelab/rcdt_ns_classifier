@@ -21,7 +21,7 @@ from utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=64, type=int)
-parser.add_argument('--dataset', type=str, default='OASIS1_dx')
+parser.add_argument('--dataset', type=str, default='OASIS1_age')
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--model', default='shallowcnn', type=str, choices=['vgg11', 'shallowcnn', 'resnet18'])
 parser.add_argument('--plot', action='store_true')
@@ -85,7 +85,7 @@ class Net3D(nn.Module):
         return x
 
 if __name__ == '__main__':
-    assert args.dataset == 'OASIS1_dx'
+    assert args.dataset == 'OASIS1_age'
     (x_train, y_train), (x_test, y_test) = load_data(args.dataset, num_classes)
     # x_train shape: (class_idx*n_samples_perclass, args.img_size, args.img_size)
     x_train = (x_train.astype(np.float32) / 255. - 0.5) / 0.5
@@ -94,30 +94,32 @@ if __name__ == '__main__':
     x_test = x_test[:, np.newaxis, ...]
     print('loaded data, x_train.shape {}, x_test.shape {}'.format(x_train.shape, x_test.shape))
 
-    for n_samples_perclass in [8, 16, 32]:
+    for n_samples_perclass in [1, 2, 4, 8, 16, 32, 64]:
         x_train_partial = np.concatenate([x_train[y_train==0][:n_samples_perclass], x_train[y_train==1][:n_samples_perclass]])
         y_train_partial = np.concatenate([y_train[y_train==0][:n_samples_perclass], y_train[y_train==1][:n_samples_perclass]])
 
         print('train samples {} test samples {}'.format(x_train_partial.shape[0], x_test.shape[0]))
-        # model = MNISTNet(x_train.shape[1], num_classes, img_size, with_softmax=True)
-        model = Net3D(1, num_classes=2)
 
-        train_split = None
-        # if n_samples_perclass >= 16:
-        #     train_split = skorch.dataset.CVSplit(10, stratified=True)
-        classifier = NeuralNetClassifier(
-            model,
-            max_epochs=20,
-            lr=5e-4,
-            optimizer=torch.optim.SGD,
-            optimizer__momentum=0.9,
-            iterator_train__shuffle=True,
-            device='cuda',
-            train_split=train_split,
-            batch_size=5
-        )
+        for repeat in range(10):
+            # model = MNISTNet(x_train.shape[1], num_classes, img_size, with_softmax=True)
+            model = Net3D(1, num_classes=2)
 
-        classifier.fit(x_train_partial, y_train_partial)
-        preds = classifier.predict(x_test)
-        acc = accuracy_score(y_test, preds)
-        print('samples per class {} test acc {}'.format(n_samples_perclass, acc))
+            train_split = None
+            # if n_samples_perclass >= 16:
+            #     train_split = skorch.dataset.CVSplit(10, stratified=True)
+            classifier = NeuralNetClassifier(
+                model,
+                max_epochs=20,
+                lr=5e-4,
+                optimizer=torch.optim.SGD,
+                optimizer__momentum=0.9,
+                iterator_train__shuffle=True,
+                device='cuda',
+                train_split=train_split,
+                batch_size=5
+            )
+
+            classifier.fit(x_train_partial, y_train_partial)
+            preds = classifier.predict(x_test)
+            acc = accuracy_score(y_test, preds)
+            print('samples per class {} repeat {} test acc {}'.format(n_samples_perclass, repeat, acc))
