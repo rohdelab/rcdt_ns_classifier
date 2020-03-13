@@ -68,11 +68,9 @@ class CDT(BaseTransform):
 
         # x co-ordinates and interpolated y co-ordinates
         x = x1
-        #y = cum0
-        y = np.linspace(0, 1, sig0.size)        
+        y = np.linspace(0, 1, sig0.size)
         y0 = interp(y, cum0, x0)    # inverse of CDF of sig0
-        y1 = interp(y, cum1, x)
-        #y1 = interp(cum0, cum1, x)     # inverse of CDF of sig1
+        y1 = interp(cum0, cum1, x)    # inverse of CDF of sig1
 
         # Compute displacements: u = f(x0)-x0
         self.displacements_ = interp(x0, y0, y1-y0)

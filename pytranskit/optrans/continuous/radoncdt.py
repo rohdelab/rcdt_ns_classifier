@@ -65,8 +65,12 @@ class RadonCDT(BaseTransform):
         self.sig0_ = sig0
 
         # Radon transform of signals
-        rad0 = radon(sig0, theta=self.theta, circle=False)
+       
         rad1 = radon(sig1, theta=self.theta, circle=False)
+        if len(np.unique(sig0)) == 1:
+            rad0 = np.ones(rad1.shape)
+        else:
+            rad0 = radon(sig0, theta=self.theta, circle=False)
 
         # Initalize CDT, Radon-CDT, displacements, and transport map
         cdt = CDT()
