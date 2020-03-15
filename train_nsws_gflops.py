@@ -195,6 +195,8 @@ if __name__ == '__main__':
         rcdt_test = fun_rcdt_batch(rcdt_test)
         x=high.stop_counters()[0]
         print('rcdt_test.shape {} GFLOPS {}'.format(rcdt_test.shape, x/1e9))
+        rcdt_gflops = (x / 1e9) / n_samples
+    print('rcdt_gflops: {}'.format(rcdt_gflops))
 
     high.start_counters([events.PAPI_DP_OPS,])
     rcdt_test = rcdt_parallel(rcdt_test)
@@ -231,11 +233,11 @@ if __name__ == '__main__':
 
             high.start_counters([events.PAPI_DP_OPS,])
             classifier.fit(x_train_sub.astype(np.float64), y_train_sub, num_classes)
-            train_gflops = high.stop_counters()[0] / 1e9
+            train_gflops = high.stop_counters()[0] / 1e9 + n_samples_perclass * num_classes * rcdt_gflops
             
             high.start_counters([events.PAPI_DP_OPS,])
             preds = classifier.predict(x_test.astype(np.float64))
-            test_gflops =high.stop_counters()[0] / 1e9
+            test_gflops = (high.stop_counters()[0] / 1e9) / x_test.shape[0] + rcdt_gflops
 
             toc = time.time()
 

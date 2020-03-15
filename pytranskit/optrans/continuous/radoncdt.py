@@ -65,8 +65,12 @@ class RadonCDT(BaseTransform):
         self.sig0_ = sig0
 
         # Radon transform of signals
-        rad0 = radon(sig0, theta=self.theta, circle=False)
+       
         rad1 = radon(sig1, theta=self.theta, circle=False)
+        if len(np.unique(sig0)) == 1:
+            rad0 = np.ones(rad1.shape)
+        else:
+            rad0 = radon(sig0, theta=self.theta, circle=False)
 
         # Initalize CDT, Radon-CDT, displacements, and transport map
         cdt = CDT()
@@ -105,7 +109,7 @@ class RadonCDT(BaseTransform):
         return rcdt
 
 
-    def inverse(self, transport_map, sig0, x1):
+    def inverse(self, transport_map, sig0, x1_range):
         """
         Inverse transform.
 
@@ -115,7 +119,7 @@ class RadonCDT(BaseTransform):
             Reconstructed signal sig1.
         """
         self._check_is_fitted()
-        return self.apply_inverse_map(transport_map, sig0, x1)
+        return self.apply_inverse_map(transport_map, sig0, x1_range)
 
 
     def apply_forward_map(self, transport_map, sig1):
@@ -211,7 +215,8 @@ class RadonCDT(BaseTransform):
             x = np.linspace(x_range[0], x_range[1], len(j0))
 
             # Radon transform of sig1 comprised of inverse CDT of projections
-            rad1[:,i],_ = cdt.apply_inverse_map(transport_map[:,i], j0, x)
+            #rad1[:,i],_ = cdt.apply_inverse_map(transport_map[:,i], j0, x)
+            rad1[:,i] = cdt.apply_inverse_map(transport_map[:,i], j0, x)
 
         # Inverse Radon transform
         sig1_recon = iradon(rad1, self.theta, circle=False, filter='ramp')
