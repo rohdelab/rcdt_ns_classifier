@@ -19,12 +19,6 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from utils import *
 
-import torch
-import skorch
-from torch import nn
-from skorch import NeuralNetClassifier
-
-
 import time
 
 
@@ -38,6 +32,10 @@ args = parser.parse_args()
 
 if args.classifier == 'mlp':
     assert not args.use_gpu
+    import torch
+    import skorch
+    from torch import nn
+    from skorch import NeuralNetClassifier
 
 if args.use_gpu:
     import cupy as cp
@@ -119,12 +117,11 @@ class SubSpaceClassifier:
                 class_data_trans = add_trans_samples(class_data)
                 flat = class_data_trans.reshape(class_data_trans.shape[0], -1)
             
-            u, s, vh = LA.svd(flat)
+            u, s, vh = LA.svd(flat,full_matrices=False)
             
             cum_s = np.cumsum(s)
             cum_s = cum_s/np.max(cum_s)
-            
-            #max_basis = max(np.where(cum_s<0.99)[0])+2
+
             max_basis = (np.where(cum_s>=0.99)[0])[0] + 1
             # print('# basis with atleast 99% variance: '+str(max_basis))
             # print('singular values: ' +str(s))

@@ -15,6 +15,7 @@ from torchvision.utils import make_grid
 import skorch
 import skorch.dataset
 from skorch import NeuralNetClassifier
+from resnet import *
 
 from model import MNISTNet
 from utils import *
@@ -102,7 +103,8 @@ if __name__ == '__main__':
 
         for repeat in range(10):
             # model = MNISTNet(x_train.shape[1], num_classes, img_size, with_softmax=True)
-            model = Net3D(1, num_classes=2)
+            # model = Net3D(1, num_classes=2)
+            model = resnet10(num_classes=2)
 
             train_split = None
             # if n_samples_perclass >= 16:
