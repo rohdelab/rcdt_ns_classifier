@@ -1,8 +1,6 @@
 # Radon cumulative transform subspace models for image classification
 
-A toolbox for  ???????
-
-This repo accompanies the paper "Radon cumulative distribution transform subspace models for image classification" (link ??).
+This repo contains the code for reproducing the resulst in the paper "Radon cumulative distribution transform subspace models for image classification".
 
 ## Dependencies
 

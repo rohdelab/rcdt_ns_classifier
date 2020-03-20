@@ -49,8 +49,6 @@ Rdown = 4  # downsample radon projections (w.r.t. angles)
 theta = np.linspace(0, 176, 180 // Rdown)
 radoncdt = RadonCDT(theta)
 
-
-
 def fun_rcdt_single(I):
     # I: (width, height)
     template = np.ones(I.shape, dtype=I.dtype)
@@ -109,7 +107,6 @@ class SubSpaceClassifier:
         self.num_classes = num_classes
         for class_idx in range(num_classes):
             # generate the bases vectors
-            # TODO check class_data is normalized (column mean = 0)
             class_data = X[y == class_idx]
             if args.no_deform_model or args.use_image_feature:
                 flat = class_data.reshape(class_data.shape[0], -1)
@@ -123,38 +120,11 @@ class SubSpaceClassifier:
             cum_s = cum_s/np.max(cum_s)
 
             max_basis = (np.where(cum_s>=0.99)[0])[0] + 1
-            # print('# basis with atleast 99% variance: '+str(max_basis))
-            # print('singular values: ' +str(s))
             
             if max_basis > self.len_subspace:
                 self.len_subspace = max_basis
             
             basis = vh[:flat.shape[0]]
-            #basis = vh[:flat.shape[0]][s > 1e-8][:256]
-            
-            #if __GPU__:
-                #basis = cp.array(basis)
-                # using SVD
-                # u, s, vh = cp.linalg.svd(cp.array(flat),full_matrices=False)
-                # basis = vh[:flat.shape[0]][s > 1e-8][:512]
-                
-                # using Gram-Schmidt Ortho-Normalization
-                # vh = gs_orthogonalization(cp.array(flat))
-                # vh = vh/cp.linalg.norm(vh,axis=1).reshape(vh.shape[0],1)
-                # basis = vh[:flat.shape[0]][:512]
-            # else:
-                # using SVD
-                # u, s, vh = LA.svd(flat)
-                # basis = vh[:flat.shape[0]][s > 1e-8][:512]
-                
-                # using Gram-Schmidt Ortho-Normalization
-                # vh = gs_orthogonalization(flat)
-                # vh = vh/LA.norm(vh,axis=1).reshape(vh.shape[0],1)
-                # basis = vh[:flat.shape[0]][:512]
-
-            # Only use the largest 512 eigenvectors
-            # Each row of basis is a eigenvector
-            
             self.subspaces.append(basis)
 
     def predict(self, X):
@@ -176,18 +146,12 @@ class SubSpaceClassifier:
             
             if args.use_gpu:
                 D.append(cp.linalg.norm(cp.matmul(cp.matmul(X, cp.array(basis).T), cp.array(basis)) -X, axis=1))
-                #basis = cp.array(basis)
-                #proj = cp.matmul(X,basis.T)
-                #projR = cp.matmul(proj,basis)
-                #D.append(cp.linalg.norm(projR - X, axis=1))
             else:
                 proj = X @ basis.T  # (n_samples, n_basis)
                 projR = proj @ basis  # (n_samples, n_features)
                 D.append(LA.norm(projR - X, axis=1))
         if args.use_gpu:
             preds = cp.argmin(cp.stack(D, axis=0), axis=0)
-            #D = cp.stack(D, axis=0)  # (num_classes, n_samples)
-            #preds = cp.argmin(D, axis=0)  # n_samples
             return cp.asnumpy(preds)
         else:
             D = np.stack(D, axis=0)
@@ -235,10 +199,7 @@ if __name__ == '__main__':
                 tic = time.time()
                 x_train_sub_flat = x_train_sub.reshape(x_train_sub.shape[0], -1)
                 x_test_flat = x_test.reshape(x_test.shape[0], -1)
-
-                # classifier = MLPClassifier(hidden_layer_sizes=(500,), max_iter=5000, learning_rate_init=5e-4)
-                # classifier = SVC(gamma='scale')
-                # train_split= skorch.dataset.CVSplit(10) if n_samples_perclass >= 16 else None
+                
                 module = nn.Sequential(nn.Linear(x_train_sub_flat.shape[1], 500), nn.ReLU(), nn.Linear(500, num_classes), nn.Softmax(dim=1))
                 classifier = NeuralNetClassifier(
                     module,
