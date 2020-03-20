@@ -8,6 +8,10 @@ See requirements.txt.
 
 ## Usage
 
+First setup the datasets: download all the data from this link, and put them in the `data` folder.
+
+use `train_nsws.py` to reproduce results of the proposed method. 
+
 ```
 usage: main.py [-h] [--dataset DATASET] --space {image,wndchrm,rcdt} --model
                {RF,KNN,SVM,LR,LDA,PLDA,MLP,ShallowCNN,VGG16,InceptionV3,ResNet,DenseNet}
