@@ -4,9 +4,7 @@ This repo contains the code for reproducing the resulst in the paper "Radon cumu
 
 ## Dependencies
 
-* scikit-learn 0.18.1 <https://scikit-learn.org/stable/>
-* Optimal transport library (https://github.com/LiamCattell/optimaltransport)
-* more ??
+See requirements.txt.
 
 ## Usage
 
