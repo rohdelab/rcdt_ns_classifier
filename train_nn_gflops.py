@@ -17,7 +17,6 @@ from torch.optim.lr_scheduler import StepLR
 from IPython.core.debugger import set_trace
 import torchvision.transforms as transforms
 from PIL import Image
-from tqdm import tqdm
 from utils import *
 from model import MNISTNet
 from sklearn.metrics import accuracy_score
