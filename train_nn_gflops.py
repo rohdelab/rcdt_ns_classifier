@@ -17,6 +17,7 @@ from torch.optim.lr_scheduler import StepLR
 from IPython.core.debugger import set_trace
 import torchvision.transforms as transforms
 from PIL import Image
+from tqdm import tqdm
 from utils import *
 from model import MNISTNet
 from sklearn.metrics import accuracy_score
@@ -37,6 +38,8 @@ if args.dataset == 'MNIST':
     assert args.model not in ['vgg11']
 
 num_classes, img_size, po_train_max, _ = dataset_config(args.dataset)
+
+po_train_max = min(po_train_max, 7)
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -91,7 +94,7 @@ if __name__ == '__main__':
                   x_val_batch = torch.rand(10, 3, img_size, img_size, dtype=torch.float64)
                   batch_logit = model(x_val_batch)
 
-        train_gflops = args.epochs * high.stop_counters()[0] / 1e9
+        train_gflops = high.stop_counters()[0] / 1e9
         print('============== perclass samples {} x_train_sub_size {} x_val_size {} train_gflops {} ============'.format(n_samples_perclass, x_train_sub_size, x_val_size, train_gflops))
         all_train_gflops.append(train_gflops)
 
