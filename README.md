@@ -20,5 +20,5 @@ First setup the datasets: download all the data from this link, and put them in 
     - Use `RCDTSUBS_classification.py` and `CNN_classification.py` to generate the FLOPs counting results for the classification method based on Radon cumulative distribution transform subspace models and the classification methods based on convolutional neural networks, respectively.
 
 4. Ablation study:
-    - Use `python ablation1.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
-    - Use `python ablation2.py --dataset DATASET --use_image_feature` to generate the results of image feature + nearest subspace classification.
+    - Use `python RCDTSUBS_classification.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
+    - Use `python RCDTSUBS_classification.py --dataset DATASET --use_image_feature` to generate the results of image feature + nearest subspace classification.
