@@ -39,7 +39,9 @@ if args.dataset == 'MNIST':
 
 num_classes, img_size, po_train_max, _ = dataset_config(args.dataset)
 
-po_train_max = min(po_train_max, 7)
+# Adhoc code to make it works on AffMNIST
+if args.dataset == 'AffMNIST':
+    po_train_max = 7
 
 np.random.seed(0)
 torch.manual_seed(0)
@@ -102,6 +104,6 @@ if __name__ == '__main__':
     Path(results_dir).mkdir(parents=True, exist_ok=True)
     result_file = os.path.join(results_dir, 'nn_{}.hdf5'.format(args.model))
     with h5py.File(result_file, 'w') as f:
-        f.create_dataset('train_gflops', data=np.array(train_gflops))
+        f.create_dataset('train_gflops', data=np.array(all_train_gflops))
         f.create_dataset('test_gflops', data=test_gflops)
     print('saved to ' + result_file)
