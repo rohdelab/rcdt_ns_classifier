@@ -1,4 +1,4 @@
-# Radon cumulative distribution transform subspace models (RCDTSUBS) for image classification
+# Radon cumulative distribution transform subspace models (RCDT-SUBS) for image classification
 
 This repo contains the Python language code for reproducing the results in the paper titled "Radon cumulative distribution transform subspace models for image classification".
 
