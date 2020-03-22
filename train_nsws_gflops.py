@@ -209,6 +209,12 @@ if __name__ == '__main__':
             x_train, y_train = f['x_train'][()], f['y_train'][()]
             x_test, y_test = f['x_test'][()], f['y_test'][()]
             print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
+            # Adhoc code for AffMNIST
+            from sklearn.model_selection import train_test_split
+            _, x_train, _, y_train = train_test_split(x_train, y_train, test_size=1100*10, random_state=42, stratify=y_train)
+            print(x_train.shape, y_train.shape)
+            print([(y_train == i).sum() for i in range(10)])
+            po_train_max = 10 # up to 1024 samples per class
     else:
         with h5py.File(cache_file, 'w') as f:
             x_train = rcdt_parallel(x_train)
