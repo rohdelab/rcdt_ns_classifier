@@ -10,10 +10,10 @@ See "requirements.txt".
 
 First setup the datasets: download all the data from this link, and put them in the `data` folder.
 
-1. Generate the results of the classification method:
+1. Generate the results of the RCDT-SUBS classification method:
     - Use `python RCDTSUBS_classification.py --dataset DATASET` to generate the results of the classification method based on Radon cumulative distribution transform subspace models.
 
-2. Generate the results of neural network-based classification methods: 
+2. Generate the results of the CNN-based classification methods: 
     - Use `python CNN_classification.py --dataset DATASET --model MODEL`, where `MODEL` could be `shallowcnn`, `resnet18`, and `vgg11`.
 
 3. Floating point operation (FLOP) count results: 
