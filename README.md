@@ -1,4 +1,4 @@
-# Radon cumulative distribution transform subspace models for image classification
+# Radon cumulative distribution transform subspace models (RCDTSUBS) for image classification
 
 This repo contains the Python language code for reproducing the results in the paper titled "Radon cumulative distribution transform subspace models for image classification".
 
@@ -10,15 +10,15 @@ See "requirements.txt".
 
 First setup the datasets: download all the data from this link, and put them in the `data` folder.
 
-1. Reproduce the results of the classification method:
-    - Use `python train_nsws.py --dataset DATASET` to reproduce the results of the classification method based on Radon cumulative distribution transform subspace models.
+1. Generate the results of the classification method:
+    - Use `python RCDTSUBS_classification.py --dataset DATASET` to generate the results of the classification method based on Radon cumulative distribution transform subspace models.
 
-2. Reproduce the results of neural network-based classification methods: 
-    - Use `python train_nn.py --dataset DATASET --model MODEL`, where `MODEL` could be `shallowcnn`, `resnet18`, and `vgg11`.
+2. Generate the results of neural network-based classification methods: 
+    - Use `python CNN_classification.py --dataset DATASET --model MODEL`, where `MODEL` could be `shallowcnn`, `resnet18`, and `vgg11`.
 
 3. Floating point operation (FLOP) count results: 
-    - Use `train_nn_gflops.py` and `train_nsws_gflops.py` to reproduce the FLOPs counting results for neural network-based classification methods and the classification method based on Radon cumulative distribution transform subspace models.
+    - Use `RCDTSUBS_classification.py` and `CNN_classification.py` to generate the FLOPs counting results for the classification method based on Radon cumulative distribution transform subspace models and the classification methods based on convolutional neural networks, respectively.
 
 4. Ablation study:
-    - Use `python train_nsws.py --dataset DATASET --classifier mlp` to reproduce the results of RCDT + MLP classification.
-    - Use `python train_nsws.py --dataset DATASET --use_image_feature` to reproduce the results of image feature + nearest subspace classification.
+    - Use `python ablation1.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
+    - Use `python ablation2.py --dataset DATASET --use_image_feature` to generate the results of image feature + nearest subspace classification.
