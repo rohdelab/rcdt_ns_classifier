@@ -15,8 +15,8 @@ See "requirements.txt".
         - name of the mat file would be `dataORG_<class_index>.mat`. Example: `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem
         - save the mat files in the `./data/training` directory.
     - For `testing` set:
-        a. and b. same as `training`
-        c. save the mat files in the `./data/testing` directory.
+        - first two steps same as `training`
+        - save the mat files in the `./data/testing` directory.
     - Update the `dataset_config` in `utils.py` with the information (e.g. image size, number of classes, maximum number of training samples) of new dataset.        
 
 2. Generate the results of the RCDT-SUBS classification method:
