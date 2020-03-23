@@ -8,7 +8,7 @@ See "requirements.txt".
 
 ## Organize datasets
 
-Setup the datasets: for the dataset used in the paper, use this link to download the datasets, and put them in the `./data` folder. To use a new dataset, organize the data using following steps:
+Organize an image classification dataset using following steps:
     - Download the image dataset, and separate `training` and `testing` sets.
     - First consider `training` set: 
         - save images from different classes into separate `.mat` files. Size of each matfile would be MxNxK, where MxN is the size of the images and K is the number of samples per class
