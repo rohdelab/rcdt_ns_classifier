@@ -2,24 +2,9 @@
 
 This repo contains the Python language code for reproducing the results in the paper titled "Radon cumulative distribution transform subspace models for image classification".
 
-## Dependencies
-
-See "requirements.txt".
-
-## Organize datasets
-
-Organize an image classification dataset using following steps:
-1. Download the image dataset, and separate `training` and `testing` sets.
-2. First consider `training` set: 
-    - save images from different classes into separate `.mat` files. Size of each matfile would be MxNxK, where MxN is the size of the images and K is the number of samples per class
-    - name of the mat file would be `dataORG_<class_index>.mat`. Example: `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem
-    - save the mat files in the `./data/training` directory.
-3. For `testing` set:
-    - first two steps same as `training`
-    - save the mat files in the `./data/testing` directory.
-4. Update the `dataset_config` in `utils.py` with the information (e.g. image size, number of classes, maximum number of training samples) of new dataset.   
-
 ## Usage     
+
+To generate the results of the classification methods, use the following commands:
 
 1. Generate the results of the RCDT-SUBS classification method:
     - Use `python RCDTSUBS_classification.py --dataset DATASET` to generate the results of the classification method based on Radon cumulative distribution transform subspace models.
@@ -33,3 +18,20 @@ Organize an image classification dataset using following steps:
 4. Ablation study:
     - Use `python RCDTSUBS_classification.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
     - Use `python RCDTSUBS_classification.py --dataset DATASET --use_image_feature` to generate the results of image feature + nearest subspace classification.
+
+## Dependencies
+
+See "requirements.txt".
+
+## Organize datasets
+
+Organize an image classification dataset using following steps:
+1. Download the image dataset, and separate `training` and `testing` sets.
+2. For the `training` set: 
+    - save images from different classes into separate `.mat` files. Size of each matfile would be MxNxK, where MxN is the size of the images and K is the number of samples per class
+    - name of the mat file would be `dataORG_<class_index>.mat`. Example: `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem
+    - save the mat files in the `./data/training` directory.
+3. For the `testing` set:
+    - first two steps same as `training`
+    - save the mat files in the `./data/testing` directory.
+4. Update the `dataset_config` in `utils.py` with the information (e.g. image size, number of classes, maximum number of training samples) of new dataset.   
