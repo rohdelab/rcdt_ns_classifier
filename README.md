@@ -10,10 +10,10 @@ See "requirements.txt".
 
 1. Setup the datasets: for the dataset used in the paper, use this link to download the datasets, and put them in the `./data` folder. To use a new dataset, organize the data using following steps:
     - Download the image dataset, and separate `training` and `testing` sets.
-    - First consider `training` set: \\
-        a. save images from different classes into separate `.mat` files. Size of each matfile would be MxNxK, where MxN is the size of the images and K is the number of samples per class
-        b. name of the mat file would be `dataORG_<class_index>.mat`. Example: `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem
-        c. save the mat files in the `./data/training` directory.
+    - First consider `training` set: 
+        - save images from different classes into separate `.mat` files. Size of each matfile would be MxNxK, where MxN is the size of the images and K is the number of samples per class
+        - name of the mat file would be `dataORG_<class_index>.mat`. Example: `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem
+        - save the mat files in the `./data/training` directory.
     - For `testing` set:
         a. and b. same as `training`
         c. save the mat files in the `./data/testing` directory.
