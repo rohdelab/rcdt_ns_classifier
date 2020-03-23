@@ -27,12 +27,12 @@ See "requirements.txt".
 
 Organize an image classification dataset using the following steps:
 
-1. Download the image dataset, and separate the `training` and `testing` sets.
+1. Download the image dataset, and separate into the `training` and `testing` sets.
 2. For the `training` set: 
-    - Save images from different classes into separate `.mat` files. Size of each `.mat` file would be $$MxNxK$$, where MxN is the size of the images and K is the number of samples per class.
+    - Save images from different classes into separate `.mat` files. Dimension of the each `.mat` file would be `M x N x K`, where `M x N` is the size of the images and `K` is the number of samples per class.
     - Name of the mat file would be `dataORG_<class_index>.mat`. For example, `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem.
     - Save the mat files in the `./data/training` directory.
 3. For the `testing` set:
     - The first two steps are the same as the first two steps for the `training` set.
     - Save the mat files in the `./data/testing` directory.
-4. Update the `dataset_config` in `utils.py` with the information (e.g. image size, number of classes, maximum number of training samples) of the dataset.   
+4. Update the `dataset_config` in `utils.py` with few information of the dataset (e.g. image size, number of classes, maximum number of training samples).   
