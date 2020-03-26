@@ -28,7 +28,12 @@ parser.add_argument('--use_image_feature', action='store_true')
 parser.add_argument('--no_deform_model', action='store_true')
 parser.add_argument('--classifier', default='subspace', choices=['mlp', 'subspace'])
 parser.add_argument('--use_gpu', action='store_true')
+parser.add_argument('--count_flops', action='store_true')
 args = parser.parse_args()
+
+
+if args.count_flops:
+   from pypapi import events, papi_high as high
 
 if args.classifier == 'mlp':
     assert not args.use_gpu
@@ -104,6 +109,8 @@ class SubSpaceClassifier:
         self :
             Returns an instance of self.
         """
+        if args.count_flops:
+            assert X.dtype == np.float64
         self.num_classes = num_classes
         for class_idx in range(num_classes):
             # generate the bases vectors
@@ -126,6 +133,9 @@ class SubSpaceClassifier:
             
             basis = vh[:flat.shape[0]]
             self.subspaces.append(basis)
+
+            if args.count_flops:
+               assert basis.dtype == np.float64
 
     def predict(self, X):
         """Predict using the linear model
@@ -163,6 +173,17 @@ if __name__ == '__main__':
     datadir = './data'
     # x_train: (n_samples, width, height)
     (x_train, y_train), (x_test, y_test) = load_data(args.dataset, num_classes, datadir)
+
+    if args.count_flops:
+        for n_samples in [1, 10, 100]:
+            high.start_counters([events.PAPI_DP_OPS,])
+            rcdt_test = x_train[:n_samples]
+            rcdt_test = fun_rcdt_batch(rcdt_test)
+            x=high.stop_counters()[0]
+            print('rcdt_test.shape {} GFLOPS {}'.format(rcdt_test.shape, x/1e9))
+            rcdt_gflops = (x / 1e9) / n_samples
+        print('rcdt_gflops: {}'.format(rcdt_gflops))
+
     if not args.use_image_feature:
         cache_file = os.path.join(datadir, args.dataset, 'rcdt.hdf5')
         if os.path.exists(cache_file):
@@ -171,6 +192,13 @@ if __name__ == '__main__':
                 x_test, y_test = f['x_test'][()], f['y_test'][()]
                 x_train, x_test = x_train.astype(np.float32), x_test.astype(np.float32)
                 print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
+                # Adhoc code for flops counting on AffMNIST dataset
+                if args.count_flops and args.dataset == 'AffMNIST':
+                    from sklearn.model_selection import train_test_split
+                    _, x_train, _, y_train = train_test_split(x_train, y_train, test_size=1100*10, random_state=42, stratify=y_train)
+                    print(x_train.shape, y_train.shape)
+                    print([(y_train == i).sum() for i in range(10)])
+                    po_train_max = 10 # up to 1024 samples per class
         else:
             with h5py.File(cache_file, 'w') as f:
                 x_train = rcdt_parallel(x_train)
@@ -187,14 +215,31 @@ if __name__ == '__main__':
     all_preds = []
     if args.use_gpu:
         x_test = cp.array(x_test)
+
+    if args.count_flops:
+       all_train_gflops, all_test_gflops = [], []
     for n_samples_perclass in [2 ** i for i in range(0, po_train_max+1)]:
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             if args.classifier == 'subspace':
                 classifier = SubSpaceClassifier()
                 tic = time.time()
-                classifier.fit(x_train_sub, y_train_sub, num_classes)
-                preds = classifier.predict(x_test)
+                if args.count_flops:
+                    x_train_sub = x_train_sub.astype(np.float64)
+                    x_test = x_test.astype(np.float64)
+                    high.start_counters([events.PAPI_DP_OPS,])
+                    classifier.fit(x_train_sub, y_train_sub, num_classes)
+                    train_gflops = high.stop_counters()[0] / 1e9 + n_samples_perclass * num_classes * rcdt_gflops
+
+                    high.start_counters([events.PAPI_DP_OPS,])
+                    preds = classifier.predict(x_test)
+                    test_gflops = (high.stop_counters()[0] / 1e9) / x_test.shape[0] + rcdt_gflops
+
+                    all_train_gflops.append(train_gflops)
+                    all_test_gflops.append(test_gflops)
+                else:
+                    classifier.fit(x_train_sub, y_train_sub, num_classes)
+                    preds = classifier.predict(x_test)
             else:
                 tic = time.time()
                 x_train_sub_flat = x_train_sub.reshape(x_train_sub.shape[0], -1)
@@ -217,6 +262,8 @@ if __name__ == '__main__':
             accs.append(accuracy_score(y_test, preds))
             all_preds.append(preds)
             print('n_samples_perclass {} repeat {} acc {}'.format(n_samples_perclass, repeat, accuracy_score(y_test, preds)))
+            if args.count_flops:
+                print('train GFLOPS {:.5f} test GFLOPS {:.5f}'.format(train_gflops, test_gflops))
 
     accs = np.array(accs).reshape(-1, num_repeats)
     preds = np.stack(all_preds, axis=0)
@@ -235,3 +282,8 @@ if __name__ == '__main__':
         f.create_dataset('accs', data=accs)
         f.create_dataset('preds', data=preds)
         f.create_dataset('y_test', data=y_test)
+        if args.count_flops:
+            train_gflops = np.array(all_train_gflops).reshape(-1, num_repeats)
+            test_gflops = np.array(all_test_gflops).reshape(-1, num_repeats)
+            f.create_dataset('train_gflops', data=train_gflops)
+            f.create_dataset('test_gflops', data=test_gflops)
