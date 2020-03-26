@@ -13,7 +13,7 @@ To generate the results of the classification methods, use the following command
     - Use `python CNN_classification.py --dataset DATASET --model MODEL`, where `MODEL` could be `shallowcnn`, `resnet18`, and `vgg11`.
 
 3. Floating point operation (FLOP) count results: 
-    - Use `RCDTSUBS_flopcount.py` and `CNN_flopcount.py` to generate the FLOPs counting results for the classification method based on Radon cumulative distribution transform subspace models and the classification methods based on convolutional neural networks, respectively.
+    - Use `RCDTSUBS_classification.py ----count_flops` and `CNN_flopcount.py` to generate the FLOPs counting results for the classification method based on Radon cumulative distribution transform subspace models and the classification methods based on convolutional neural networks, respectively.
 
 4. Ablation study:
     - Use `python RCDTSUBS_classification.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
