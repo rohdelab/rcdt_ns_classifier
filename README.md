@@ -18,6 +18,8 @@ To generate the results of the classification methods, use the following command
 4. Ablation study:
     - Use `python RCDTSUBS_classification.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
     - Use `python RCDTSUBS_classification.py --dataset DATASET --use_image_feature` to generate the results of image feature + nearest subspace classification.
+    
+We also provide a bash script "MNIST_classification.sh" for a demonstration of how to do RCDT-SUBS classification and neural network classification on MNIST dataset.
 
 ## Dependencies
 
