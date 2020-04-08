@@ -52,7 +52,7 @@ Accuracy = accuracy_score(y_test, preds) * 100.
 #### The above steps have also been compiled in a single python notebook ```RCDT_NS_demo.ipynb``` which runs the RCDT-NS classifier on MNIST dataset.
 
 
-## Reproduce Results from the Paper     
+## Reproduce Results of the Paper     
 
 To generate the results of the classification methods, use the following commands:
 
