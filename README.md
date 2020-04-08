@@ -42,7 +42,8 @@ preds = rcdt_ns_obj.predict(x_test, use_gpu)
 If ```use_gpu = True```, testing phase will run in GPU. Otherwise, CPU will be used.
 ```predict``` function returns the predicted class labels (in 1d array ```preds```) for the test images. To calculate the accuracy one can use ```accuracy_score``` function from ```sklearn``` package (https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html).
 
-#### The above steps have been compiled in a single python script ```RCDT_NS_demo.py```.
+#### The above steps have also been compiled in a single python script ```RCDT_NS_demo.py``` which runs the RCDT-NS classifier on MNIST dataset
+
 
 ## Reproduce Results from the Paper     
 
