@@ -8,7 +8,7 @@ The library can be installed through pip
 ```
 pip install pytranskit
 ```
-Alternately, one can clone/download the repository from https://github.com/rohdelab/PyTransKit and add the `pytranskit` directory to your Python path.
+Alternately, one can clone/download the repository from [[github](https://github.com/rohdelab/PyTransKit)] and add the `pytranskit` directory to your Python path.
 ```
 import sys
 sys.path.append('path/to/pytranskit')
