@@ -1,6 +1,6 @@
 # Radon cumulative distribution transform subspace models for image classification
 
-This repository contains the Python language codes for reproducing the results in the paper titled "Radon cumulative distribution transform subspace models for image classification" using the proposed Radon cumulative distribution trasnform nearest subspace (RCDT-NS) classifier. To use this classifier users need to install PyTransKit (Python Transport Based Signal Processing Toolkit) from: https://github.com/rohdelab/PyTransKit .
+This repository contains the Python language codes for reproducing the results in the paper titled "Radon cumulative distribution transform subspace models for image classification" using the Radon cumulative distribution transform nearest subspace (RCDT-NS) classifier. To use this classifier users need to install PyTransKit (Python Transport Based Signal Processing Toolkit) from: https://github.com/rohdelab/PyTransKit.
 
 ## Installation of PyTransKit
 
@@ -52,7 +52,7 @@ Accuracy = accuracy_score(y_test, preds) * 100.
 #### The above steps have also been compiled in a single python notebook ```RCDT_NS_demo.ipynb``` which runs the RCDT-NS classifier on MNIST dataset.
 
 
-## Reproduce Results from the Paper     
+## Reproduce Results of the Paper     
 
 To generate the results of the classification methods, use the following commands:
 
