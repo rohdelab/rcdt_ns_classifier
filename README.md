@@ -49,12 +49,12 @@ from sklearn.metrics import accuracy_score
 Accuracy = accuracy_score(y_test, preds) * 100.
 ```
 
-#### The above steps have also been compiled in a single python notebook ```RCDT_NS_demo.ipynb``` which runs the RCDT-NS classifier on MNIST dataset.
+#### The above steps have also been compiled in a single python notebook ```Demo_RCDT_NS.ipynb``` which runs the RCDT-NS classifier on MNIST dataset.
 
 
 ## Reproduce Results of the Paper     
 
-To generate the results of the classification methods, use the following commands:
+Python scripts for reproducing the results shown in the paper have been provided inside the ```reproduce_paper_results/``` directory. To generate the results of the classification methods, first ```cd``` to this directory and then use the following commands:
 
 1. Generate the results of the RCDT-NS classification method:
     - Use `python RCDT_NS_classification.py --dataset DATASET` to generate the results of the classification method based on Radon cumulative distribution transform subspace models. Example: `python RCDT_NS_classification.py --dataset MNIST` (here, images from the MNIST dataset have been organized in ```data/MNIST``` directory).
