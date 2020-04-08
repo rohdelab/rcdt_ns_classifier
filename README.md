@@ -14,7 +14,7 @@ import sys
 sys.path.append('path/to/pytranskit')
 ```
 
-## Usage of RCDT-NS classifier
+## RCDT-NS Classifier Demo
 
 1. First, import the RCDT_NS class from PyTransKit.
 ```python
