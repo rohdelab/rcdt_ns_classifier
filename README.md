@@ -27,7 +27,7 @@ from pytranskit.classification.rcdt_ns import RCDT_NS
 4. Create an instance of the RCDT_NS class. Users need to specify total number of class and directions (in degrees) of the Radon projections.
 ```python
 import numpy as np
-theta = np.linspace(0,180,45) .     # 45 directions for Radon projections
+theta = np.linspace(0,180,45) .     # 45 equidistant angles for Radon projections
 num_class = 10                      # for MNIST
 
 rcdt_ns_obj = RCDT_NS(num_classes, theta)
