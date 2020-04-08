@@ -1,37 +1,79 @@
-# Radon cumulative distribution transform subspace models (RCDT-NS) for image classification
+# Radon cumulative distribution transform subspace models for image classification
 
-This repository contains the Python language code for reproducing the results in the paper titled "Radon cumulative distribution transform subspace models for image classification".
+This repository contains the Python language codes for reproducing the results in the paper titled "Radon cumulative distribution transform subspace models for image classification" using the proposed Radon cumulative distribution trasnform nearest subspace (RCDT-NS) classifier. To use this classifier users need to install PyTransKit (Python Transport Based Signal Processing Toolkit) from: https://github.com/rohdelab/PyTransKit .
 
-## Usage     
+## Installation PyTransKit
+
+The library can be installed through pip
+```
+pip install pytranskit
+```
+Alternately, one can clone/download the repository from https://github.com/rohdelab/PyTransKit and add the `pytranskit` directory to your Python path.
+```
+import sys
+sys.path.append('path/to/pytranskit')
+```
+
+## Usage of RCDT-NS classifier
+
+1. First, import the RCDT_NS class from PyTransKit.
+```
+from pytranskit.classification.rcdt_ns import RCDT_NS
+```
+2. Load/read image data in a 3d array ```x_train``` with shape ```[#samples x #rows x #columns]```. Create another 1d array ```y_train``` containing class labels of corresponding images. 
+
+3. Similarly, load test images ```x_test```
+
+4. Create an instance of the RCDT_NS class. Users need to specify total number of class and directions (in degrees) of the Radon projections.
+```
+rcdt_ns_obj = RCDT_NS(num_classes, theta, rm_edge=True)
+```
+```rm_edge``` is a flag used to control the start and end points of the CDT. Usage of this flag can be found here: https://github.com/rohdelab/PyTransKit/blob/master/pytranskit/optrans/continuous/cdt.py .
+
+5. Train the classifier using ```x_train``` and ```y_train```.
+```
+rcdt_ns_obj.fit(x_train_sub, y_train_sub)
+```
+
+6. Test the classifier using ```x_test```.
+```
+preds = rcdt_ns_obj.predict(x_test, use_gpu)
+```
+If ```use_gpu = True```, testing phase will run in GPU. Otherwise, CPU will be used.
+```predict``` function returns the predicted class labels (in 1d array ```preds```) for the test images. To calculate the accuracy one can use ```accuracy_score``` function from ```sklearn``` package (https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html).
+
+#### The above steps have been compiled in a single python script ```RCDT_NS_demo.py```.
+
+## Reproduce Results from the Paper     
 
 To generate the results of the classification methods, use the following commands:
 
-1. Generate the results of the RCDT-SUBS classification method:
-    - Use `python RCDTSUBS_classification.py --dataset DATASET` to generate the results of the classification method based on Radon cumulative distribution transform subspace models.
+1. Generate the results of the RCDT-NS classification method:
+    - Use `python RCDT_NS_classification.py --dataset DATASET` to generate the results of the classification method based on Radon cumulative distribution transform subspace models. Example: `python RCDT_NS_classification.py --dataset MNIST` (here, images from the MNIST dataset have been organized in ```data/MNIST``` directory).
 
 2. Generate the results of the CNN-based classification methods: 
     - Use `python CNN_classification.py --dataset DATASET --model MODEL`, where `MODEL` could be `shallowcnn`, `resnet18`, and `vgg11`.
 
 3. Floating point operation (FLOP) count results: 
-    - Use `RCDTSUBS_classification.py ----count_flops` and `CNN_flopcount.py` to generate the FLOPs counting results for the classification method based on Radon cumulative distribution transform subspace models and the classification methods based on convolutional neural networks, respectively.
+    - Use `RCDT_NS_classification.py ----count_flops` and `CNN_flopcount.py` to generate the FLOPs counting results for the classification method based on Radon cumulative distribution transform subspace models and the classification methods based on convolutional neural networks, respectively.
 
 4. Ablation study:
-    - Use `python RCDTSUBS_classification.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
-    - Use `python RCDTSUBS_classification.py --dataset DATASET --use_image_feature` to generate the results of image feature + nearest subspace classification.
+    - Use `python RCDT_NS_classification.py --dataset DATASET --classifier mlp` to generate the results of RCDT + MLP classification.
+    - Use `python RCDT_NS_classification.py --dataset DATASET --use_image_feature` to generate the results of image feature + nearest subspace classification.
     
-We also provide a bash script "MNIST_classification.sh" for a demonstration of how to do RCDT-SUBS classification and neural network classification on MNIST dataset.
+We also provide a bash script "MNIST_classification.sh" for a demonstration of how to do RCDT-NS classification and neural network classification on MNIST dataset.
 
-## Dependencies
+### Dependencies
 
 See "requirements.txt".
 
-## Organize datasets
+### Organize datasets
 
 Organize an image classification dataset as follows:
 
 1. Download the image dataset, and seperate it into the `training` and `testing` sets.
 2. For the `training` set: 
-    - Save images from different classes into separate `.mat` files. Dimension of the each `.mat` file would be `M x N x K`, where `M x N` is the size of the images and `K` is the number of samples per class.
+    - Save images from different classes into separate `.mat` files. Dimension of the each `.mat` file would be `K x M x N`, where `M x N` is the size of the images and `K` is the number of samples per class.
     - Name of the mat file would be `dataORG_<class_index>.mat`. For example, `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem.
     - Save the mat files in the `./data/training` directory.
 3. For the `testing` set:
