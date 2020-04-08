@@ -8,7 +8,7 @@ The library can be installed through pip
 ```
 pip install pytranskit
 ```
-Alternately, one can clone/download the repository from https://github.com/rohdelab/PyTransKit and add the `pytranskit` directory to your Python path.
+Alternately, one can clone/download the repository from [[github](https://github.com/rohdelab/PyTransKit)] and add the `pytranskit` directory to your Python path.
 ```
 import sys
 sys.path.append('path/to/pytranskit')
@@ -26,9 +26,8 @@ from pytranskit.classification.rcdt_ns import RCDT_NS
 
 4. Create an instance of the RCDT_NS class. Users need to specify total number of class and directions (in degrees) of the Radon projections.
 ```
-rcdt_ns_obj = RCDT_NS(num_classes, theta, rm_edge=True)
+rcdt_ns_obj = RCDT_NS(num_classes, theta)
 ```
-```rm_edge``` is a flag used to control the start and end points of the CDT. Usage of this flag can be found here: https://github.com/rohdelab/PyTransKit/blob/master/pytranskit/optrans/continuous/cdt.py .
 
 5. Train the classifier using ```x_train``` and ```y_train```.
 ```
@@ -40,9 +39,9 @@ rcdt_ns_obj.fit(x_train_sub, y_train_sub)
 preds = rcdt_ns_obj.predict(x_test, use_gpu)
 ```
 If ```use_gpu = True```, testing phase will run in GPU. Otherwise, CPU will be used.
-```predict``` function returns the predicted class labels (in 1d array ```preds```) for the test images. To calculate the accuracy one can use ```accuracy_score``` function from ```sklearn``` package (https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html).
+```predict``` function returns the predicted class labels (in 1d array ```preds```) for the test images. To calculate the accuracy one can use ```accuracy_score``` function from [[sklearn](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html)] package.
 
-#### The above steps have also been compiled in a single python script ```RCDT_NS_demo.py``` which runs the RCDT-NS classifier on MNIST dataset
+#### The above steps have also been compiled in a single python script ```RCDT_NS_demo.py``` which runs the RCDT-NS classifier on MNIST dataset.
 
 
 ## Reproduce Results from the Paper     
@@ -74,7 +73,7 @@ Organize an image classification dataset as follows:
 
 1. Download the image dataset, and seperate it into the `training` and `testing` sets.
 2. For the `training` set: 
-    - Save images from different classes into separate `.mat` files. Dimension of the each `.mat` file would be `K x M x N`, where `M x N` is the size of the images and `K` is the number of samples per class.
+    - Save images from different classes into separate `.mat` files. Dimension of the each `.mat` file would be `M x N x K`, where `M x N` is the size of the images and `K` is the number of samples per class.
     - Name of the mat file would be `dataORG_<class_index>.mat`. For example, `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem.
     - Save the mat files in the `./data/training` directory.
 3. For the `testing` set:
