@@ -26,9 +26,8 @@ from pytranskit.classification.rcdt_ns import RCDT_NS
 
 4. Create an instance of the RCDT_NS class. Users need to specify total number of class and directions (in degrees) of the Radon projections.
 ```
-rcdt_ns_obj = RCDT_NS(num_classes, theta, rm_edge=True)
+rcdt_ns_obj = RCDT_NS(num_classes, theta)
 ```
-```rm_edge``` is a flag used to control the start and end points of the CDT. Usage of this flag can be found here: https://github.com/rohdelab/PyTransKit/blob/master/pytranskit/optrans/continuous/cdt.py .
 
 5. Train the classifier using ```x_train``` and ```y_train```.
 ```
