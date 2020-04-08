@@ -9,7 +9,7 @@ The library can be installed through pip
 pip install pytranskit
 ```
 Alternately, one can clone/download the repository from [[github](https://github.com/rohdelab/PyTransKit)] and add the `pytranskit` directory to your Python path.
-```
+```python
 import sys
 sys.path.append('path/to/pytranskit')
 ```
@@ -25,17 +25,17 @@ from pytranskit.classification.rcdt_ns import RCDT_NS
 3. Similarly, load test images ```x_test```
 
 4. Create an instance of the RCDT_NS class. Users need to specify total number of class and directions (in degrees) of the Radon projections.
-```
+```python
 rcdt_ns_obj = RCDT_NS(num_classes, theta)
 ```
 
 5. Train the classifier using ```x_train``` and ```y_train```.
-```
+```python
 rcdt_ns_obj.fit(x_train_sub, y_train_sub)
 ```
 
 6. Test the classifier using ```x_test```.
-```
+```python
 preds = rcdt_ns_obj.predict(x_test, use_gpu)
 ```
 If ```use_gpu = True```, testing phase will run in GPU. Otherwise, CPU will be used.
