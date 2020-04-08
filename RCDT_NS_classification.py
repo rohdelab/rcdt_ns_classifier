@@ -29,6 +29,7 @@ import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
+parser.add_argument('--use_image_feature', action='store_true')
 parser.add_argument('--classifier', default='subspace', choices=['mlp', 'subspace'])
 parser.add_argument('--use_gpu', action='store_true')
 parser.add_argument('--count_flops', action='store_true')
@@ -45,11 +46,91 @@ if args.classifier == 'mlp':
     from torch import nn
     from skorch import NeuralNetClassifier
 
-if args.use_gpu:
-    import cupy as cp
-
 num_classes, img_size, po_train_max, rm_edge = dataset_config(args.dataset)
 theta = np.linspace(0, 176, 45) 
+
+
+# Nearest Subspace classifier opearting on image samples
+class NS:
+    def __init__(self, num_classes):
+        self.num_classes = num_classes
+        self.subspaces = []
+        self.len_subspace = 0
+
+    def fit(self, X, y):
+        """Fit linear model.
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_rows, n_columns)
+            Training data.
+        y : ndarray of shape (n_samples,)
+            Target values.
+        Returns
+        -------
+        self :
+            Returns an instance of self.
+        """
+        if args.count_flops:
+            assert X.dtype == np.float64
+
+        for class_idx in range(self.num_classes):
+            # generate the bases vectors
+            class_data = X[y == class_idx]
+            
+            flat = class_data.reshape(class_data.shape[0], -1)
+            
+            u, s, vh = LA.svd(flat,full_matrices=False)
+            
+            cum_s = np.cumsum(s)
+            cum_s = cum_s/np.max(cum_s)
+
+            max_basis = (np.where(cum_s>=0.99)[0])[0] + 1
+            
+            if max_basis > self.len_subspace:
+                self.len_subspace = max_basis
+            
+            basis = vh[:flat.shape[0]]
+            self.subspaces.append(basis)
+
+            if args.count_flops:
+               assert basis.dtype == np.float64
+
+    def predict(self, X):
+        """Predict using the linear model
+        Parameters
+        ----------
+        X : array-like, sparse matrix, shape (n_samples, n_rows, n_columns)
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+           Predicted target values per element in X.
+        """
+        X = X.reshape([X.shape[0], -1])
+        if args.use_gpu:
+            import cupy as cp
+            X = cp.array(X)
+        D = []
+        for class_idx in range(self.num_classes):
+            basis = self.subspaces[class_idx]
+            basis = basis[:self.len_subspace,:]
+            
+            if args.use_gpu:
+                D.append(cp.linalg.norm(cp.matmul(cp.matmul(X, cp.array(basis).T), 
+                                                  cp.array(basis)) -X, axis=1))
+            else:
+                proj = X @ basis.T  # (n_samples, n_basis)
+                projR = proj @ basis  # (n_samples, n_features)
+                D.append(LA.norm(projR - X, axis=1))
+        if args.use_gpu:
+            preds = cp.argmin(cp.stack(D, axis=0), axis=0)
+            return cp.asnumpy(preds)
+        else:
+            D = np.stack(D, axis=0)
+            preds = np.argmin(D, axis=0)
+            return preds
+
+
+
 
 if __name__ == '__main__':
     datadir = './data'
@@ -70,8 +151,6 @@ if __name__ == '__main__':
     num_repeats = 10
     accs = []
     all_preds = []
-    if args.use_gpu:
-        x_test = cp.array(x_test)
 
     if args.count_flops:
        all_train_gflops, all_test_gflops = [], []
@@ -79,24 +158,35 @@ if __name__ == '__main__':
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             if args.classifier == 'subspace':
-                classifier = RCDT_NS(num_classes, theta, rm_edge)
+                if args.use_image_feature:
+                    classifier = NS(num_classes)    
+                else:
+                    classifier = RCDT_NS(num_classes, theta, rm_edge)
                 tic = time.time()
                 if args.count_flops:
                     x_train_sub = x_train_sub.astype(np.float64)
                     x_test = x_test.astype(np.float64)
                     high.start_counters([events.PAPI_DP_OPS,])
+                    
                     classifier.fit(x_train_sub, y_train_sub)
                     train_gflops = high.stop_counters()[0] / 1e9 + n_samples_perclass * num_classes * rcdt_gflops
 
                     high.start_counters([events.PAPI_DP_OPS,])
-                    preds = classifier.predict(x_test, args.use_gpu)
+                    if args.use_image_feature:
+                        preds = classifier.predict(x_test)
+                    else:
+                        preds = classifier.predict(x_test, args.use_gpu)
                     test_gflops = (high.stop_counters()[0] / 1e9) / x_test.shape[0] + rcdt_gflops
 
                     all_train_gflops.append(train_gflops)
                     all_test_gflops.append(test_gflops)
                 else:
-                    classifier.fit(x_train_sub, y_train_sub)
-                    preds = classifier.predict(x_test, args.use_gpu)
+                    if args.use_image_feature:
+                        classifier.fit(x_train_sub, y_train_sub)
+                        preds = classifier.predict(x_test)
+                    else:
+                        classifier.fit(x_train_sub, y_train_sub)
+                        preds = classifier.predict(x_test, args.use_gpu)
             else:
                 tic = time.time()
                 x_train_sub_flat = x_train_sub.reshape(x_train_sub.shape[0], -1)
@@ -131,10 +221,13 @@ if __name__ == '__main__':
     results_dir = 'results/final/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
 
-    if args.classifier == 'mlp':
-        result_file = os.path.join(results_dir, 'nsws_{}.hdf5'.format(args.classifier))
+    if args.use_image_feature:
+        result_file = os.path.join(results_dir, 'nsws_image.hdf5')
     else:
-        result_file = os.path.join(results_dir, 'nsws.hdf5')
+        if args.classifier == 'mlp':
+            result_file = os.path.join(results_dir, 'nsws_{}.hdf5'.format(args.classifier))
+        else:
+            result_file = os.path.join(results_dir, 'nsws.hdf5')
     with h5py.File(result_file, 'w') as f:
         f.create_dataset('accs', data=accs)
         f.create_dataset('preds', data=preds)
