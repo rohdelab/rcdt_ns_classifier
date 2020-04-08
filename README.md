@@ -17,7 +17,7 @@ sys.path.append('path/to/pytranskit')
 ## Usage of RCDT-NS classifier
 
 1. First, import the RCDT_NS class from PyTransKit.
-```
+```python
 from pytranskit.classification.rcdt_ns import RCDT_NS
 ```
 2. Load/read image data in a 3d array ```x_train``` with shape ```[#samples x #rows x #columns]```. Create another 1d array ```y_train``` containing class labels of corresponding images. 
