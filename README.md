@@ -73,7 +73,7 @@ Organize an image classification dataset as follows:
 
 1. Download the image dataset, and seperate it into the `training` and `testing` sets.
 2. For the `training` set: 
-    - Save images from different classes into separate `.mat` files. Dimension of the each `.mat` file would be `K x M x N`, where `M x N` is the size of the images and `K` is the number of samples per class.
+    - Save images from different classes into separate `.mat` files. Dimension of the each `.mat` file would be `M x N x K`, where `M x N` is the size of the images and `K` is the number of samples per class.
     - Name of the mat file would be `dataORG_<class_index>.mat`. For example, `dataORG_0.mat` and `dataORG_1.mat` would be two mat files for a binary class problem.
     - Save the mat files in the `./data/training` directory.
 3. For the `testing` set:
