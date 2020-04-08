@@ -42,7 +42,7 @@ def take_samples(data, labels, index, num_classes):
     return np.concatenate(indexed_data), np.concatenate(new_labels)
 
 
-def load_data(dataset, num_classes, datadir='data'):
+def load_data(dataset, num_classes, datadir='../data'):
     cache_file = os.path.join(datadir, dataset, 'dataset.hdf5')
     if os.path.exists(cache_file):
         with h5py.File(cache_file, 'r') as f:

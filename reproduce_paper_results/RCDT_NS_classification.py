@@ -17,7 +17,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 
 import sys
-sys.path.append('../')   # path to 'pytranskit' package
+sys.path.append('../../')   # path to 'pytranskit' package
 
 # Import RCDT-NS class from pytranskit package.
 # This contains all the necessary functions to run the classifier
@@ -133,7 +133,7 @@ class NS:
 
 
 if __name__ == '__main__':
-    datadir = './data'
+    datadir = '../data'
     # x_train: (n_samples, width, height)
     (x_train, y_train), (x_test, y_test) = load_data(args.dataset, num_classes, datadir)
 
