@@ -51,10 +51,11 @@ Accuracy = accuracy_score(y_test, preds) * 100.
 
 #### The above steps have also been compiled in a single python notebook ```Demo_RCDT_NS.ipynb``` which runs the RCDT-NS classifier on MNIST dataset.
 
-## Citation
-Please cite the following paper when publishing findings that benefit from the codes provided here.
+# Publication for Citation
+Please cite the following publication when publishing findings that benefit from the codes provided here.
 
 #### Shifat-E-Rabbi M, Yin X, Rubaiyat AHM, Li S, Kolouri S, Aldroubi A, Nichols JM, Rohde GK. Radon cumulative distribution transform subspace modeling for image classification. [[Paper](https://arxiv.org/abs/2004.03669)]
+
 
 ## Reproduce Results from the Paper     
 
