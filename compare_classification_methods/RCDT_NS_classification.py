@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Feb 13 10:58:26 2020
 
-@author: Hasnat, Xuwang Yin
+"""
+Created on Tue Apr  7 22:09:19 2020
+
+@author: A. H. M. Rubaiyat, X. Yin, M. Shifat-E-Rabbi
 """
 
 import argparse
@@ -14,11 +13,16 @@ from sklearn.metrics import accuracy_score
 import numpy as np
 import numpy.linalg as LA
 
-from pytranskit.optrans.continuous.radoncdt import RadonCDT
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
-from utils import *
+
+import sys
+sys.path.append('../../')   # path to 'pytranskit' package
+
+# Import RCDT-NS class from pytranskit package.
+# This contains all the necessary functions to run the classifier
 from pytranskit.classification.rcdt_ns import RCDT_NS
+from utils import *
 
 import time
 
@@ -26,7 +30,6 @@ import time
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--use_image_feature', action='store_true')
-parser.add_argument('--no_deform_model', action='store_true')
 parser.add_argument('--classifier', default='subspace', choices=['mlp', 'subspace'])
 parser.add_argument('--use_gpu', action='store_true')
 parser.add_argument('--count_flops', action='store_true')
@@ -43,52 +46,89 @@ if args.classifier == 'mlp':
     from torch import nn
     from skorch import NeuralNetClassifier
 
-if args.use_gpu:
-    import cupy as cp
-
 num_classes, img_size, po_train_max, rm_edge = dataset_config(args.dataset)
+theta = np.linspace(0, 176, 45) 
 
-eps = 1e-6
-x0_range = [0, 1]
-x_range = [0, 1]
-Rdown = 4  # downsample radon projections (w.r.t. angles)
-theta = np.linspace(0, 176, 180 // Rdown)
-radoncdt = RadonCDT(theta)
 
-def fun_rcdt_single(I):
-    # I: (width, height)
-    template = np.ones(I.shape, dtype=I.dtype)
-    Ircdt = radoncdt.forward(x0_range, template / np.sum(template), x_range, I / np.sum(I), rm_edge)
-    return Ircdt
+# Nearest Subspace classifier opearting on image samples
+class NS:
+    def __init__(self, num_classes):
+        self.num_classes = num_classes
+        self.subspaces = []
+        self.len_subspace = 0
 
-def fun_rcdt_batch(data):
-    # data: (n_samples, width, height)
-    dataRCDT = [fun_rcdt_single(data[j, :, :] + eps) for j in range(data.shape[0])]
-    return np.array(dataRCDT)
+    def fit(self, X, y):
+        """Fit linear model.
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_rows, n_columns)
+            Training data.
+        y : ndarray of shape (n_samples,)
+            Target values.
+        Returns
+        -------
+        self :
+            Returns an instance of self.
+        """
+        if args.count_flops:
+            assert X.dtype == np.float64
 
-def rcdt_parallel(X):
-    # X: (n_samples, width, height)
-    # template for RCDT
+        for class_idx in range(self.num_classes):
+            # generate the bases vectors
+            class_data = X[y == class_idx]
+            
+            flat = class_data.reshape(class_data.shape[0], -1)
+            
+            u, s, vh = LA.svd(flat,full_matrices=False)
+            
+            cum_s = np.cumsum(s)
+            cum_s = cum_s/np.max(cum_s)
 
-    # calc RCDT of test images
-    print('Calculating RCDT ...')
-    splits = np.array_split(X, mp.cpu_count(), axis=0)
-    pl = mp.Pool(mp.cpu_count())
+            max_basis = (np.where(cum_s>=0.99)[0])[0] + 1
+            
+            if max_basis > self.len_subspace:
+                self.len_subspace = max_basis
+            
+            basis = vh[:flat.shape[0]]
+            self.subspaces.append(basis)
 
-    dataRCDT = pl.map(fun_rcdt_batch, splits)
-    rcdt_features = np.vstack(dataRCDT)  # (n_samples, proj_len, num_angles)
-    pl.close()
-    pl.join()
+            if args.count_flops:
+               assert basis.dtype == np.float64
 
-    return rcdt_features
+    def predict(self, X):
+        """Predict using the linear model
+        Parameters
+        ----------
+        X : array-like, sparse matrix, shape (n_samples, n_rows, n_columns)
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+           Predicted target values per element in X.
+        """
+        X = X.reshape([X.shape[0], -1])
+        if args.use_gpu:
+            import cupy as cp
+            X = cp.array(X)
+        D = []
+        for class_idx in range(self.num_classes):
+            basis = self.subspaces[class_idx]
+            basis = basis[:self.len_subspace,:]
+            
+            if args.use_gpu:
+                D.append(cp.linalg.norm(cp.matmul(cp.matmul(X, cp.array(basis).T), 
+                                                  cp.array(basis)) -X, axis=1))
+            else:
+                proj = X @ basis.T  # (n_samples, n_basis)
+                projR = proj @ basis  # (n_samples, n_features)
+                D.append(LA.norm(projR - X, axis=1))
+        if args.use_gpu:
+            preds = cp.argmin(cp.stack(D, axis=0), axis=0)
+            return cp.asnumpy(preds)
+        else:
+            D = np.stack(D, axis=0)
+            preds = np.argmin(D, axis=0)
+            return preds
 
-def add_trans_samples(rcdt_features):
-    # rcdt_features: (n_samples, proj_len, num_angles)
-    # deformation vectors for  translation
-    v1, v2 = np.cos(theta*np.pi/180), np.sin(theta*np.pi/180)
-    v1 = np.repeat(v1[np.newaxis], rcdt_features.shape[1], axis=0)
-    v2 = np.repeat(v2[np.newaxis], rcdt_features.shape[1], axis=0)
-    return np.concatenate([rcdt_features, v1[np.newaxis], v2[np.newaxis]])
 
 
 
@@ -98,46 +138,19 @@ if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = load_data(args.dataset, num_classes, datadir)
 
     if args.count_flops:
+        rcdt_ns_obj = RCDT_NS(num_classes, theta, rm_edge)
         for n_samples in [1, 10, 100]:
             high.start_counters([events.PAPI_DP_OPS,])
             rcdt_test = x_train[:n_samples]
-            rcdt_test = fun_rcdt_batch(rcdt_test)
+            rcdt_test = rcdt_ns_obj.fun_rcdt_batch(rcdt_test)
             x=high.stop_counters()[0]
             print('rcdt_test.shape {} GFLOPS {}'.format(rcdt_test.shape, x/1e9))
             rcdt_gflops = (x / 1e9) / n_samples
         print('rcdt_gflops: {}'.format(rcdt_gflops))
 
-    if not args.use_image_feature:
-        cache_file = os.path.join(datadir, args.dataset, 'rcdt.hdf5')
-        if os.path.exists(cache_file):
-            with h5py.File(cache_file, 'r') as f:
-                x_train, y_train = f['x_train'][()], f['y_train'][()]
-                x_test, y_test = f['x_test'][()], f['y_test'][()]
-                x_train, x_test = x_train.astype(np.float32), x_test.astype(np.float32)
-                print('loaded from cache file data: x_train {} x_test {}'.format(x_train.shape, x_test.shape))
-                # Adhoc code for flops counting on AffMNIST dataset
-                if args.count_flops and args.dataset == 'AffMNIST':
-                    from sklearn.model_selection import train_test_split
-                    _, x_train, _, y_train = train_test_split(x_train, y_train, test_size=1100*10, random_state=42, stratify=y_train)
-                    print(x_train.shape, y_train.shape)
-                    print([(y_train == i).sum() for i in range(10)])
-                    po_train_max = 10 # up to 1024 samples per class
-        else:
-            with h5py.File(cache_file, 'w') as f:
-                x_train = rcdt_parallel(x_train)
-                x_test = rcdt_parallel(x_test)
-                x_train, x_test = x_train.astype(np.float32), x_test.astype(np.float32)
-                f.create_dataset('x_train', data=x_train)
-                f.create_dataset('y_train', data=y_train)
-                f.create_dataset('x_test', data=x_test)
-                f.create_dataset('y_test', data=y_test)
-                print('saved to {}'.format(cache_file))
-
     num_repeats = 10
     accs = []
     all_preds = []
-    if args.use_gpu:
-        x_test = cp.array(x_test)
 
     if args.count_flops:
        all_train_gflops, all_test_gflops = [], []
@@ -145,28 +158,35 @@ if __name__ == '__main__':
         for repeat in range(num_repeats):
             x_train_sub, y_train_sub = take_train_samples(x_train, y_train, n_samples_perclass, num_classes, repeat)
             if args.classifier == 'subspace':
-                classifier = RCDT_NS(theta=theta, 
-                                     no_deform_model=args.no_deform_model, 
-                                     use_image_feature=args.use_image_feature, 
-                                     count_flops=args.count_flops,
-                                     use_gpu=args.use_gpu)
+                if args.use_image_feature:
+                    classifier = NS(num_classes)    
+                else:
+                    classifier = RCDT_NS(num_classes, theta, rm_edge)
                 tic = time.time()
                 if args.count_flops:
                     x_train_sub = x_train_sub.astype(np.float64)
                     x_test = x_test.astype(np.float64)
                     high.start_counters([events.PAPI_DP_OPS,])
-                    classifier.fit(x_train_sub, y_train_sub, num_classes)
+                    
+                    classifier.fit(x_train_sub, y_train_sub)
                     train_gflops = high.stop_counters()[0] / 1e9 + n_samples_perclass * num_classes * rcdt_gflops
 
                     high.start_counters([events.PAPI_DP_OPS,])
-                    preds = classifier.predict(x_test)
+                    if args.use_image_feature:
+                        preds = classifier.predict(x_test)
+                    else:
+                        preds = classifier.predict(x_test, args.use_gpu)
                     test_gflops = (high.stop_counters()[0] / 1e9) / x_test.shape[0] + rcdt_gflops
 
                     all_train_gflops.append(train_gflops)
                     all_test_gflops.append(test_gflops)
                 else:
-                    classifier.fit(x_train_sub, y_train_sub, num_classes)
-                    preds = classifier.predict(x_test)
+                    if args.use_image_feature:
+                        classifier.fit(x_train_sub, y_train_sub)
+                        preds = classifier.predict(x_test)
+                    else:
+                        classifier.fit(x_train_sub, y_train_sub)
+                        preds = classifier.predict(x_test, args.use_gpu)
             else:
                 tic = time.time()
                 x_train_sub_flat = x_train_sub.reshape(x_train_sub.shape[0], -1)
@@ -180,8 +200,7 @@ if __name__ == '__main__':
                     optimizer=torch.optim.Adam,
                     iterator_train__shuffle=True,
                     train_split=None,
-                    device='cuda',
-                    verbose=0
+                    device='cuda'
                 )
                 classifier.fit(x_train_sub_flat, y_train_sub)
                 preds = classifier.predict(x_test_flat)
@@ -194,11 +213,14 @@ if __name__ == '__main__':
                 print('train GFLOPS {:.5f} test GFLOPS {:.5f}'.format(train_gflops, test_gflops))
 
     accs = np.array(accs).reshape(-1, num_repeats)
+    print('Mean accuracies: {}'.format(np.mean(accs,axis=1)))
+    
     preds = np.stack(all_preds, axis=0)
     preds = preds.reshape([preds.shape[0] // num_repeats, num_repeats, preds.shape[1]])
 
     results_dir = 'results/final/{}/'.format(args.dataset)
     Path(results_dir).mkdir(parents=True, exist_ok=True)
+
     if args.use_image_feature:
         result_file = os.path.join(results_dir, 'nsws_image.hdf5')
     else:
