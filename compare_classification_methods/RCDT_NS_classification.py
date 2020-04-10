@@ -50,6 +50,38 @@ num_classes, img_size, po_train_max, rm_edge = dataset_config(args.dataset)
 theta = np.linspace(0, 176, 45) 
 
 
+# Functions to calculate RCDT when MLP classifier is used
+from pytranskit.optrans.continuous.radoncdt import RadonCDT
+eps = 1e-6
+x0_range = [0, 1]
+x_range = [0, 1]
+radoncdt = RadonCDT(theta)
+
+def fun_rcdt_single(I):
+    # I: (width, height)
+    template = np.ones(I.shape, dtype=I.dtype)
+    Ircdt = radoncdt.forward(x0_range, template / np.sum(template), x_range, I / np.sum(I), rm_edge)
+    return Ircdt
+
+def fun_rcdt_batch(data):
+    # data: (n_samples, width, height)
+    dataRCDT = [fun_rcdt_single(data[j, :, :] + eps) for j in range(data.shape[0])]
+    return np.array(dataRCDT)
+
+def rcdt_parallel(X):
+    # X: (n_samples, width, height)
+    print('Calculating RCDT ...')
+    n_cpu = np.min([mp.cpu_count(), X.shape[0]])
+    splits = np.array_split(X, n_cpu, axis=0)
+    pl = mp.Pool(n_cpu)
+
+    dataRCDT = pl.map(fun_rcdt_batch, splits)
+    rcdt_features = np.vstack(dataRCDT)  # (n_samples, proj_len, num_angles)
+    pl.close()
+    pl.join()
+
+    return rcdt_features
+
 # Nearest Subspace classifier opearting on image samples
 class NS:
     def __init__(self, num_classes):
@@ -189,10 +221,14 @@ if __name__ == '__main__':
                         preds = classifier.predict(x_test, args.use_gpu)
             else:
                 tic = time.time()
-                x_train_sub_flat = x_train_sub.reshape(x_train_sub.shape[0], -1)
-                x_test_flat = x_test.reshape(x_test.shape[0], -1)
+                x_train_rcdt = rcdt_parallel(x_train_sub)
+                x_test_rcdt = rcdt_parallel(x_test)
+                x_train_rcdt, x_test_rcdt = x_train_rcdt.astype(np.float32), x_test_rcdt.astype(np.float32)
                 
-                module = nn.Sequential(nn.Linear(x_train_sub_flat.shape[1], 500), nn.ReLU(), nn.Linear(500, num_classes), nn.Softmax(dim=1))
+                x_train_rcdt_flat = x_train_rcdt.reshape(x_train_rcdt.shape[0], -1)
+                x_test_rcdt_flat = x_test_rcdt.reshape(x_test_rcdt.shape[0], -1)
+                
+                module = nn.Sequential(nn.Linear(x_train_rcdt_flat.shape[1], 500), nn.ReLU(), nn.Linear(500, num_classes), nn.Softmax(dim=1))
                 classifier = NeuralNetClassifier(
                     module,
                     max_epochs=500,
@@ -202,8 +238,8 @@ if __name__ == '__main__':
                     train_split=None,
                     device='cuda'
                 )
-                classifier.fit(x_train_sub_flat, y_train_sub)
-                preds = classifier.predict(x_test_flat)
+                classifier.fit(x_train_rcdt_flat, y_train_sub)
+                preds = classifier.predict(x_test_rcdt_flat)
             toc = time.time()
             # print('Runtime of fit+predict functions: {} seconds'.format(toc-tic))
             accs.append(accuracy_score(y_test, preds))
