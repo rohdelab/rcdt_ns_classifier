@@ -54,7 +54,7 @@ Accuracy = accuracy_score(y_test, preds) * 100.
 # Publication for Citation
 Please cite the following publication when publishing findings that benefit from the codes provided here.
 
-#### Shifat-E-Rabbi M, Yin X, Rubaiyat AHM, Li S, Kolouri S, Aldroubi A, Nichols JM, Rohde GK. Radon cumulative distribution transform subspace modeling for image classification. [[Paper](https://arxiv.org/abs/2004.03669)]
+#### Shifat-E-Rabbi M, Yin X, Rubaiyat AHM, Li S, Kolouri S, Aldroubi A, Nichols JM, Rohde GK. "Radon cumulative distribution transform subspace modeling for image classification." arXiv preprint arXiv:2004.03669 (2020). [[Paper](https://arxiv.org/abs/2004.03669)]
 
 
 ## Reproduce Results from the Paper     
