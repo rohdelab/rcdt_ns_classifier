@@ -191,7 +191,7 @@ def dataset_config(dataset):
         rm_edge = False
         num_classes = 2
         img_size = 208
-        po_train_max = 6
+        po_train_max = 5
     elif dataset in ['Synthetic100']:
         rm_edge = True
         num_classes = 100
