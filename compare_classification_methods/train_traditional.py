@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 13 10:58:26 2020
-
-@author: Hasnat, Xuwang Yin
+@author: Xuwang Yin
 """
 
 import argparse
@@ -38,7 +36,7 @@ from sklearn.decomposition import PCA
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--feature', type=str, required=True, choices=['raw', 'hog', 'sift', 'wavelet'])
-parser.add_argument('--classifier', required=True, choices=['KNN', 'SVM', 'subspace'])
+parser.add_argument('--classifier', required=True, choices=['KNN', 'SVM', 'subspace', 'rbf-svm'])
 args = parser.parse_args()
 
 num_classes, img_size, po_train_max, rm_edge = dataset_config(args.dataset)
@@ -102,21 +100,6 @@ def extract_hog_parallel(imgs):
     pl.join()
     return fd
 
-# def extract_hog(imgs):
-#     HOG_descriptors = []
-#     HOG_imgs = []
-#     for img in tqdm(imgs):
-#         # https://scikit-image.org/docs/dev/auto_examples/features_detection/plot_hog.html
-#         fd, hog_image = hog(img, visualize=True, multichannel=True)
-#         HOG_descriptors.append(fd)
-#         HOG_imgs.append(hog_image)
-#     HOG_descriptors = np.array(HOG_descriptors).astype(np.float32)
-#     HOG_imgs_rescaled = np.array([exposure.rescale_intensity(img, in_range=(0, 10)) for img in HOG_imgs])
-#     HOG_imgs = np.array(HOG_imgs)
-#     HOG_imgs_rescaled = (HOG_imgs_rescaled * 255).astype(np.uint8)
-#     HOG_imgs = (HOG_imgs* 255).astype(np.uint8)
-#     return HOG_descriptors
-# 
 
 if __name__ == '__main__':
     datadir = './data'
@@ -146,10 +129,6 @@ if __name__ == '__main__':
                 train_codes = np.array([bag_of_words_encode(kmeans, img_fd) for img_fd in train_img_fds])
                 test_codes = np.array([bag_of_words_encode(kmeans, img_fd) for img_fd in test_img_fds])
                 x_train, x_test = train_codes, test_codes
-                # clf = KNeighborsClassifier(n_neighbors=5)
-                # clf.fit(train_codes, y_train)
-                # acc = accuracy_score(y_test, clf.predict(test_codes))
-                # print(acc)
             elif args.feature == 'wavelet':
                 train_img_fds = extract_wavelet(x_train)
                 test_img_fds = extract_wavelet(x_test)
@@ -177,8 +156,9 @@ if __name__ == '__main__':
             elif args.classifier == 'KNN':
                 clf = KNeighborsClassifier(n_neighbors=3)
             elif args.classifier == 'SVM':
-                # clf = make_pipeline(StandardScaler(), LinearSVC())
                 clf = LinearSVC()
+            elif args.classifier == 'rbf-svm':
+                clf = SVC(kernel='rbf')
             
             clf.fit(x_train_sub_flat, y_train_sub)
             preds = clf.predict(x_test_flat)
