@@ -52,7 +52,7 @@ Accuracy = accuracy_score(y_test, preds) * 100.
 #### The above steps have also been compiled in a single python notebook ```Demo_RCDT_NS.ipynb``` which runs the RCDT-NS classifier on MNIST dataset.
 
 ## RCDT-NS Classifier in MATLAB
-The MATLAB implementation of the RCDT-NS classifier can be found here [[rcdt_ns (matlab)](https://github.com/rohdelab/rcdt_ns_classifier_matlab)]
+The MATLAB implementation of the RCDT-NS classifier can be found here: [[rcdt_ns (matlab)](https://github.com/rohdelab/rcdt_ns_classifier_matlab)]
 
 # Publication for Citation
 Please cite the following publication when publishing findings that benefit from the codes provided here.
