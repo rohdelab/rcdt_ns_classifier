@@ -8,7 +8,7 @@ scikit_image==0.14.1
 scipy==1.1.0
 cupy==7.2.0
 pillow>=8.3.2
-pypapi==0.8
+python_papi # only required for FLOPS counting
 scikit_learn==0.22.2.post1
 skorch==0.7.0
 thop==0.0.31-2001170342
