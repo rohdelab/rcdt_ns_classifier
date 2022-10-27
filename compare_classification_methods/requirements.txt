@@ -3,7 +3,7 @@ matplotlib==3.0.2
 six==1.14.0
 torchvision==0.5.0
 h5py==2.8.0
-numpy==1.15.4
+numpy==1.22.0
 scikit_image==0.14.1
 scipy==1.1.0
 cupy==7.2.0
